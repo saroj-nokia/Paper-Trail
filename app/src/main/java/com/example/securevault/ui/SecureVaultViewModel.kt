@@ -15,6 +15,7 @@ import com.example.securevault.data.SecureVaultRepository
 import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
 import com.example.securevault.security.BiometricRosterState
+import com.example.securevault.security.MasterCredentialType
 import com.example.securevault.security.SecureVaultAuthManager
 import com.example.securevault.security.SecureVaultBiometricTracker
 import kotlinx.coroutines.Dispatchers
@@ -117,9 +118,70 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   private val _showPassphrasePrompt = MutableStateFlow<Boolean>(false)
   val showPassphrasePrompt: StateFlow<Boolean> = _showPassphrasePrompt.asStateFlow()
 
+  private val _showCredentialSetupDialog = MutableStateFlow<Boolean>(false)
+  val showCredentialSetupDialog: StateFlow<Boolean> = _showCredentialSetupDialog.asStateFlow()
+
+  private val _masterCredentialType = MutableStateFlow<MasterCredentialType>(
+    SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+  )
+  val masterCredentialType: StateFlow<MasterCredentialType> = _masterCredentialType.asStateFlow()
+
   init {
     viewModelScope.launch {
       repository.verifyIntegrityAndSelfHeal()
+      _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+    }
+  }
+
+  fun refreshMasterCredentialType() {
+    _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+  }
+
+  fun isMasterCredentialConfigured(): Boolean {
+    return SecureVaultBiometricTracker.isMasterPassphraseSet(getApplication())
+  }
+
+  fun openCredentialSetupDialog() {
+    _showCredentialSetupDialog.value = true
+  }
+
+  fun dismissCredentialSetupDialog() {
+    _showCredentialSetupDialog.value = false
+  }
+
+  fun saveMasterCredential(
+    currentSecret: String?,
+    newSecret: String,
+    type: MasterCredentialType
+  ): Boolean {
+    val context = getApplication<Application>()
+    val isAlreadySet = SecureVaultBiometricTracker.isMasterPassphraseSet(context)
+
+    if (isAlreadySet && currentSecret != null) {
+      val (success, message) = SecureVaultBiometricTracker.changeMasterCredential(context, currentSecret, newSecret, type)
+      if (success) {
+        _masterCredentialType.value = type
+        _showCredentialSetupDialog.value = false
+        _infoMessage.value = message
+        return true
+      } else {
+        _errorMessage.value = message
+        return false
+      }
+    } else {
+      if (newSecret.length < type.minLength) {
+        _errorMessage.value = "${type.title} must be at least ${type.minLength} characters."
+        return false
+      }
+      if (type == MasterCredentialType.PIN && !newSecret.all { it.isDigit() }) {
+        _errorMessage.value = "Master PIN must contain digits only."
+        return false
+      }
+      SecureVaultBiometricTracker.setMasterCredential(context, newSecret, type)
+      _masterCredentialType.value = type
+      _showCredentialSetupDialog.value = false
+      _infoMessage.value = "${type.title} successfully configured."
+      return true
     }
   }
 
@@ -132,6 +194,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   }
 
   fun openPassphrasePrompt() {
+    refreshMasterCredentialType()
     _showPassphrasePrompt.value = true
   }
 
@@ -142,6 +205,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
 
   fun verifyMasterPassphraseAndReEnroll(passphrase: String, activity: FragmentActivity): Boolean {
     val isValid = SecureVaultBiometricTracker.verifyMasterPassphrase(activity, passphrase)
+    val credType = SecureVaultBiometricTracker.getMasterCredentialType(activity)
     if (isValid) {
       // Regenerate the Hardware KeyStore key for the new biometric roster
       SecureVaultKeyManager.resetAndRegenerateKey()
@@ -155,10 +219,10 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         null
       }
       authManager.unlockDirectly(newCipher)
-      _infoMessage.value = "Identity verified. Biometric hardware credentials successfully updated."
+      _infoMessage.value = "Identity verified via ${credType.title}. Hardware vault unlocked."
       return true
     } else {
-      _errorMessage.value = "Incorrect Master Passphrase. Please try again."
+      _errorMessage.value = "Incorrect ${credType.title}. Please try again."
       return false
     }
   }

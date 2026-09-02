@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -53,7 +54,9 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -110,6 +113,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -129,6 +133,7 @@ import com.example.data.security.SecurityIntegrityAuditor
 import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
 import com.example.securevault.security.BiometricRosterState
+import com.example.securevault.security.MasterCredentialType
 import com.example.securevault.security.VaultUpdateType
 import com.example.ui.screens.auth.SecurityIntegrityGateScreen
 import kotlinx.coroutines.Dispatchers
@@ -164,6 +169,8 @@ fun SecureVaultScreen(
   val customFolderUri by viewModel.customFolderUriString.collectAsStateWithLifecycle()
   val biometricRosterAlert by viewModel.biometricRosterAlert.collectAsStateWithLifecycle()
   val showPassphrasePrompt by viewModel.showPassphrasePrompt.collectAsStateWithLifecycle()
+  val showCredentialSetupDialog by viewModel.showCredentialSetupDialog.collectAsStateWithLifecycle()
+  val masterCredentialType by viewModel.masterCredentialType.collectAsStateWithLifecycle()
 
   // Hardware Security Strict Gate check
   val isStrictGateEnabled = remember { SecurityAuditPreferences.isStrictGateEnabled(context) }
@@ -283,6 +290,7 @@ fun SecureVaultScreen(
   } else if (!isUnlocked) {
     // Dedicated Biometric Lock Screen for SecureVault
     SecureVaultLockGate(
+      masterCredentialType = masterCredentialType,
       onUnlock = {
         activity?.let {
           viewModel.unlockVault(it)
@@ -654,6 +662,11 @@ fun SecureVaultScreen(
       currentLocation = storageLocation,
       customFolderUri = customFolderUri,
       customFolderDisplayName = if (activity != null) viewModel.getCustomFolderDisplayName(activity) else null,
+      masterCredentialType = masterCredentialType,
+      onConfigureMasterCredential = {
+        showStorageDialog = false
+        viewModel.openCredentialSetupDialog()
+      },
       onPickCustomFolder = { openDocumentTreeLauncher.launch(null) },
       onSelectLocation = { targetLoc, migrate ->
         if (activity != null) {
@@ -761,12 +774,25 @@ fun SecureVaultScreen(
   if (showPassphrasePrompt) {
     MasterPassphraseDialog(
       alertState = biometricRosterAlert,
+      defaultCredentialType = masterCredentialType,
       onVerify = { input ->
         activity?.let { act ->
           viewModel.verifyMasterPassphraseAndReEnroll(input, act)
         }
       },
       onDismiss = { viewModel.dismissBiometricAlert() }
+    )
+  }
+
+  // Master Passphrase / PIN Setup & Configuration Dialog
+  if (showCredentialSetupDialog) {
+    MasterCredentialSetupDialog(
+      currentType = masterCredentialType,
+      isConfigured = viewModel.isMasterCredentialConfigured(),
+      onSave = { current, newSecret, type ->
+        viewModel.saveMasterCredential(current, newSecret, type)
+      },
+      onDismiss = { viewModel.dismissCredentialSetupDialog() }
     )
   }
 }
@@ -776,6 +802,8 @@ private fun StorageSettingsDialog(
   currentLocation: VaultStorageLocation,
   customFolderUri: String?,
   customFolderDisplayName: String?,
+  masterCredentialType: MasterCredentialType,
+  onConfigureMasterCredential: () -> Unit,
   onPickCustomFolder: () -> Unit,
   onSelectLocation: (target: VaultStorageLocation, migrate: Boolean) -> Unit,
   onExportBackup: () -> Unit,
@@ -931,6 +959,53 @@ private fun StorageSettingsDialog(
           colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber)
         ) {
           Text(buttonText, fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Master Security Credential Section
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Master Security Credential",
+              style = MaterialTheme.typography.labelLarge,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+              text = "Active fallback: ${masterCredentialType.title} • Key recovery token",
+              style = MaterialTheme.typography.bodySmall,
+              fontSize = 11.sp,
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(
+          onClick = onConfigureMasterCredential,
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("configure_master_credential_button")
+        ) {
+          Icon(
+            imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = SecureVaultAmber
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(
+            "Configure / Change PIN or Passphrase",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = SecureVaultAmber
+          )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1202,6 +1277,7 @@ private fun StorageLocationOptionCard(
 
 @Composable
 private fun SecureVaultLockGate(
+  masterCredentialType: MasterCredentialType,
   onUnlock: () -> Unit,
   onPassphraseUnlock: () -> Unit,
   isLoading: Boolean
@@ -1285,9 +1361,18 @@ private fun SecureVaultLockGate(
           .height(48.dp)
           .testTag("securevault_passphrase_button")
       ) {
-        Icon(Icons.Default.Key, contentDescription = null, tint = SecureVaultAmber, modifier = Modifier.size(18.dp))
+        Icon(
+          imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
+          contentDescription = null,
+          tint = SecureVaultAmber,
+          modifier = Modifier.size(18.dp)
+        )
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Use Master Passphrase", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        Text(
+          text = if (masterCredentialType == MasterCredentialType.PIN) "Use Master PIN" else "Use Master Passphrase",
+          color = MaterialTheme.colorScheme.onSurface,
+          fontWeight = FontWeight.SemiBold
+        )
       }
     }
   }
@@ -1296,17 +1381,19 @@ private fun SecureVaultLockGate(
 @Composable
 private fun MasterPassphraseDialog(
   alertState: BiometricRosterState?,
+  defaultCredentialType: MasterCredentialType = MasterCredentialType.PIN,
   onVerify: (String) -> Unit,
   onDismiss: () -> Unit
 ) {
   var passphrase by remember { mutableStateOf("") }
   var isPasswordVisible by remember { mutableStateOf(false) }
+  var activeMode by remember { mutableStateOf(defaultCredentialType) }
 
   AlertDialog(
     onDismissRequest = onDismiss,
     icon = {
       Icon(
-        imageVector = if (alertState?.isRogueAlert == true) Icons.Default.WarningAmber else Icons.Default.Key,
+        imageVector = if (alertState?.isRogueAlert == true) Icons.Default.WarningAmber else if (activeMode == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
         contentDescription = null,
         tint = if (alertState?.isRogueAlert == true) MaterialTheme.colorScheme.error else SecureVaultAmber,
         modifier = Modifier.size(36.dp)
@@ -1318,7 +1405,7 @@ private fun MasterPassphraseDialog(
           alertState?.isRogueAlert == true -> "Biometric Settings Changed"
           alertState?.updateType == VaultUpdateType.OS_UPDATE -> "System OS Update Detected"
           alertState?.updateType == VaultUpdateType.APP_UPDATE -> "App Update Detected"
-          else -> "Master Passphrase"
+          else -> if (activeMode == MasterCredentialType.PIN) "Master PIN" else "Master Passphrase"
         },
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center
@@ -1341,27 +1428,70 @@ private fun MasterPassphraseDialog(
               lineHeight = 18.sp
             )
           }
-          Spacer(modifier = Modifier.height(16.dp))
+          Spacer(modifier = Modifier.height(14.dp))
         } else {
           Text(
-            text = "Enter your Master Passphrase or PIN to verify identity and unlock your hardware-encrypted vault.",
+            text = "Enter your ${activeMode.title} to verify identity and unlock your hardware-encrypted vault.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
-          Spacer(modifier = Modifier.height(16.dp))
+          Spacer(modifier = Modifier.height(14.dp))
         }
+
+        // Mode switch tabs
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(2.dp),
+          horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+          MasterCredentialType.entries.forEach { type ->
+            val isSelected = activeMode == type
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(if (isSelected) SecureVaultAmber else Color.Transparent)
+                .clickable {
+                  activeMode = type
+                  passphrase = ""
+                }
+                .padding(vertical = 6.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = type.title,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
           value = passphrase,
-          onValueChange = { passphrase = it },
-          label = { Text("Master Passphrase / PIN") },
+          onValueChange = {
+            if (activeMode == MasterCredentialType.PIN) {
+              if (it.all { char -> char.isDigit() }) passphrase = it
+            } else {
+              passphrase = it
+            }
+          },
+          label = { Text(activeMode.title) },
+          placeholder = { Text(if (activeMode == MasterCredentialType.PIN) "Enter PIN digits" else "Enter Passphrase") },
           singleLine = true,
           visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = if (activeMode == MasterCredentialType.PIN) KeyboardType.NumberPassword else KeyboardType.Password),
           trailingIcon = {
             IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
               Icon(
                 imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                contentDescription = if (isPasswordVisible) "Hide passphrase" else "Show passphrase"
+                contentDescription = if (isPasswordVisible) "Hide secret" else "Show secret"
               )
             }
           },
@@ -1383,6 +1513,250 @@ private fun MasterPassphraseDialog(
         modifier = Modifier.testTag("confirm_master_passphrase_button")
       ) {
         Text(if (alertState != null) "Verify & Re-Sync" else "Unlock Vault")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Cancel")
+      }
+    }
+  )
+}
+
+@Composable
+private fun MasterCredentialSetupDialog(
+  currentType: MasterCredentialType,
+  isConfigured: Boolean,
+  onSave: (current: String?, newSecret: String, type: MasterCredentialType) -> Boolean,
+  onDismiss: () -> Unit
+) {
+  var selectedType by remember { mutableStateOf(currentType) }
+  var currentSecret by remember { mutableStateOf("") }
+  var newSecret by remember { mutableStateOf("") }
+  var confirmSecret by remember { mutableStateOf("") }
+  var isCurrentVisible by remember { mutableStateOf(false) }
+  var isNewVisible by remember { mutableStateOf(false) }
+  var isConfirmVisible by remember { mutableStateOf(false) }
+  var localError by remember { mutableStateOf<String?>(null) }
+
+  val isPin = selectedType == MasterCredentialType.PIN
+  val minLength = selectedType.minLength
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    icon = {
+      Icon(
+        imageVector = if (isPin) Icons.Default.Pin else Icons.Default.Key,
+        contentDescription = null,
+        tint = SecureVaultAmber,
+        modifier = Modifier.size(36.dp)
+      )
+    },
+    title = {
+      Text(
+        text = if (isConfigured) "Configure Master Credential" else "Set Master Credential",
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center
+      )
+    },
+    text = {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .verticalScroll(rememberScrollState())
+      ) {
+        Text(
+          text = "Select whether you want to use a numeric PIN or a full alphanumeric Master Passphrase as the root fallback authentication token.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Type Selector Tabs / Segmented Control
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp),
+          horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+          MasterCredentialType.entries.forEach { type ->
+            val isSelected = selectedType == type
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (isSelected) SecureVaultAmber else Color.Transparent)
+                .clickable {
+                  selectedType = type
+                  localError = null
+                }
+                .padding(vertical = 8.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                  imageVector = if (type == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Password,
+                  contentDescription = null,
+                  tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = type.title,
+                  style = MaterialTheme.typography.labelMedium,
+                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                  color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Error message box if any
+        if (localError != null) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(8.dp))
+              .background(MaterialTheme.colorScheme.errorContainer)
+              .padding(8.dp)
+          ) {
+            Text(
+              text = localError!!,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onErrorContainer
+            )
+          }
+          Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // If already set, require current secret
+        if (isConfigured) {
+          OutlinedTextField(
+            value = currentSecret,
+            onValueChange = {
+              currentSecret = it
+              localError = null
+            },
+            label = { Text("Current ${currentType.title}") },
+            singleLine = true,
+            visualTransformation = if (isCurrentVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = if (currentType == MasterCredentialType.PIN) KeyboardType.NumberPassword else KeyboardType.Password),
+            trailingIcon = {
+              IconButton(onClick = { isCurrentVisible = !isCurrentVisible }) {
+                Icon(
+                  imageVector = if (isCurrentVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                  contentDescription = null
+                )
+              }
+            },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("current_credential_input")
+          )
+          Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // New Secret
+        OutlinedTextField(
+          value = newSecret,
+          onValueChange = {
+            if (isPin) {
+              if (it.all { char -> char.isDigit() }) newSecret = it
+            } else {
+              newSecret = it
+            }
+            localError = null
+          },
+          label = { Text("New ${selectedType.title}") },
+          placeholder = { Text(if (isPin) "e.g., 123456" else "e.g., SecurePassphrase#2026") },
+          singleLine = true,
+          visualTransformation = if (isNewVisible) VisualTransformation.None else PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = if (isPin) KeyboardType.NumberPassword else KeyboardType.Password),
+          trailingIcon = {
+            IconButton(onClick = { isNewVisible = !isNewVisible }) {
+              Icon(
+                imageVector = if (isNewVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                contentDescription = null
+              )
+            }
+          },
+          supportingText = {
+            Text(
+              text = if (isPin) "Minimum $minLength digits (numeric)" else "Minimum $minLength characters (letters, digits, symbols)",
+              style = MaterialTheme.typography.bodySmall,
+              fontSize = 11.sp
+            )
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("new_credential_input")
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Confirm New Secret
+        OutlinedTextField(
+          value = confirmSecret,
+          onValueChange = {
+            if (isPin) {
+              if (it.all { char -> char.isDigit() }) confirmSecret = it
+            } else {
+              confirmSecret = it
+            }
+            localError = null
+          },
+          label = { Text("Confirm New ${selectedType.title}") },
+          singleLine = true,
+          visualTransformation = if (isConfirmVisible) VisualTransformation.None else PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = if (isPin) KeyboardType.NumberPassword else KeyboardType.Password),
+          trailingIcon = {
+            IconButton(onClick = { isConfirmVisible = !isConfirmVisible }) {
+              Icon(
+                imageVector = if (isConfirmVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                contentDescription = null
+              )
+            }
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("confirm_credential_input")
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          if (isConfigured && currentSecret.isBlank()) {
+            localError = "Please enter your current ${currentType.title}."
+            return@Button
+          }
+          if (newSecret.length < minLength) {
+            localError = "${selectedType.title} must be at least $minLength characters."
+            return@Button
+          }
+          if (isPin && !newSecret.all { it.isDigit() }) {
+            localError = "PIN must contain digits only."
+            return@Button
+          }
+          if (newSecret != confirmSecret) {
+            localError = "New ${selectedType.title}s do not match."
+            return@Button
+          }
+          val success = onSave(if (isConfigured) currentSecret else null, newSecret, selectedType)
+          if (!success) {
+            localError = "Failed to update credential. Check your current credential."
+          }
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber),
+        modifier = Modifier.testTag("save_master_credential_button")
+      ) {
+        Text("Save & Apply", fontWeight = FontWeight.Bold)
       }
     },
     dismissButton = {
