@@ -59,6 +59,10 @@ object SecureVaultKeyManager {
       .setKeySize(256)
       .setUserAuthenticationRequired(true)
 
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      builder.setInvalidatedByBiometricEnrollment(false)
+    }
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       builder.setUserAuthenticationParameters(
         0,

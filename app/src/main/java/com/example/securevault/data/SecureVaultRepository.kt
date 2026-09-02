@@ -320,6 +320,9 @@ class SecureVaultRepository(
       val savedItem = item.copy(id = generatedId)
       CryptoLogger.success("STORAGE_FLUSH", "Encrypted blob committed: $blobName (${actualSize} bytes) into ${activeLoc.title}")
 
+      // Record updated metadata shadow snapshot for update resilience
+      SecureVaultMetadataSafety.recordShadowSnapshot(context, dao.getAllFilesSync())
+
       // 7. Delete original unencrypted source file if requested ("Move to Vault" behavior)
       if (deleteOriginalAfterImport) {
         CryptoLogger.info("FILE_MOVE", "Deleting unencrypted original source file from storage...")
@@ -606,6 +609,7 @@ class SecureVaultRepository(
         blobHandle.delete()
       }
       dao.deleteFile(item)
+      SecureVaultMetadataSafety.recordShadowSnapshot(context, dao.getAllFilesSync())
       Log.i(TAG, "Deleted file ${item.id} and removed encrypted blob.")
     } catch (e: Throwable) {
       Log.e(TAG, "Error deleting file ${item.id}: ${e.message}", e)
@@ -882,12 +886,19 @@ class SecureVaultRepository(
           onProgress(i + 1, totalEntries)
         }
 
+        if (restoredCount > 0) {
+          SecureVaultMetadataSafety.recordShadowSnapshot(context, dao.getAllFilesSync())
+        }
         Result.success(restoredCount)
       } ?: Result.failure(IllegalStateException("Could not open backup file"))
     } catch (e: Throwable) {
       Log.e(TAG, "Failed to restore vault backup: ${e.message}", e)
       Result.failure(e)
     }
+  }
+
+  suspend fun verifyIntegrityAndSelfHeal() = withContext(Dispatchers.IO) {
+    SecureVaultMetadataSafety.verifyAndSelfHeal(dao, context, this@SecureVaultRepository)
   }
 }
 

@@ -109,6 +109,12 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   private val _activeMediaPlayback = MutableStateFlow<SecureVaultMediaPlayerState?>(null)
   val activeMediaPlayback: StateFlow<SecureVaultMediaPlayerState?> = _activeMediaPlayback.asStateFlow()
 
+  init {
+    viewModelScope.launch {
+      repository.verifyIntegrityAndSelfHeal()
+    }
+  }
+
   fun clearError() {
     _errorMessage.value = null
   }

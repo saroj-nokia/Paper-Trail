@@ -66,7 +66,6 @@ abstract class SecureVaultDatabase : RoomDatabase() {
           )
             .openHelperFactory(factory)
             .addMigrations(MIGRATION_1_2)
-            .fallbackToDestructiveMigration()
             .build()
 
           // Eagerly verify native SQLCipher connection
@@ -91,7 +90,6 @@ abstract class SecureVaultDatabase : RoomDatabase() {
         PLAINTEXT_DB_NAME
       )
         .addMigrations(MIGRATION_1_2)
-        .fallbackToDestructiveMigration()
         .build()
 
       try {

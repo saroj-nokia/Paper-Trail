@@ -60,7 +60,6 @@ abstract class AppDatabase : RoomDatabase() {
 
           val encryptedDb = Room.databaseBuilder(appContext, AppDatabase::class.java, ENCRYPTED_DB_NAME)
             .openHelperFactory(factory)
-            .fallbackToDestructiveMigration()
             .build()
 
           // Eagerly verify native SQLCipher connection by running a trivial query synchronously.
@@ -82,7 +81,6 @@ abstract class AppDatabase : RoomDatabase() {
       // Plaintext fallback database
       Log.w(TAG, "Initializing unencrypted fallback database.")
       val fallbackDb = Room.databaseBuilder(appContext, AppDatabase::class.java, PLAINTEXT_DB_NAME)
-        .fallbackToDestructiveMigration()
         .build()
 
       try {
