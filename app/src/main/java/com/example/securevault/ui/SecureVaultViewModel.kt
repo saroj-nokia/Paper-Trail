@@ -14,7 +14,9 @@ import com.example.securevault.data.SecureVaultKeyManager
 import com.example.securevault.data.SecureVaultRepository
 import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
+import com.example.securevault.security.BiometricRosterState
 import com.example.securevault.security.SecureVaultAuthManager
+import com.example.securevault.security.SecureVaultBiometricTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -109,6 +111,12 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   private val _activeMediaPlayback = MutableStateFlow<SecureVaultMediaPlayerState?>(null)
   val activeMediaPlayback: StateFlow<SecureVaultMediaPlayerState?> = _activeMediaPlayback.asStateFlow()
 
+  private val _biometricRosterAlert = MutableStateFlow<BiometricRosterState?>(null)
+  val biometricRosterAlert: StateFlow<BiometricRosterState?> = _biometricRosterAlert.asStateFlow()
+
+  private val _showPassphrasePrompt = MutableStateFlow<Boolean>(false)
+  val showPassphrasePrompt: StateFlow<Boolean> = _showPassphrasePrompt.asStateFlow()
+
   init {
     viewModelScope.launch {
       repository.verifyIntegrityAndSelfHeal()
@@ -121,6 +129,38 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
 
   fun clearInfo() {
     _infoMessage.value = null
+  }
+
+  fun openPassphrasePrompt() {
+    _showPassphrasePrompt.value = true
+  }
+
+  fun dismissBiometricAlert() {
+    _biometricRosterAlert.value = null
+    _showPassphrasePrompt.value = false
+  }
+
+  fun verifyMasterPassphraseAndReEnroll(passphrase: String, activity: FragmentActivity): Boolean {
+    val isValid = SecureVaultBiometricTracker.verifyMasterPassphrase(activity, passphrase)
+    if (isValid) {
+      // Regenerate the Hardware KeyStore key for the new biometric roster
+      SecureVaultKeyManager.resetAndRegenerateKey()
+      SecureVaultBiometricTracker.recordCurrentMetrics(activity)
+      _biometricRosterAlert.value = null
+      _showPassphrasePrompt.value = false
+
+      val newCipher = try {
+        SecureVaultKeyManager.initEncryptCipher()
+      } catch (e: Exception) {
+        null
+      }
+      authManager.unlockDirectly(newCipher)
+      _infoMessage.value = "Identity verified. Biometric hardware credentials successfully updated."
+      return true
+    } else {
+      _errorMessage.value = "Incorrect Master Passphrase. Please try again."
+      return false
+    }
   }
 
   fun setCustomFolderUri(uri: Uri?, activity: FragmentActivity) {
@@ -177,14 +217,21 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         }
       }
 
+      var cipher: Cipher? = null
       try {
-        val cipher = try {
-          SecureVaultKeyManager.initEncryptCipher()
-        } catch (e: Exception) {
-          Log.w(TAG, "Cipher init without prompt: ${e.message}")
-          null
+        cipher = SecureVaultKeyManager.initEncryptCipher()
+      } catch (e: Exception) {
+        Log.w(TAG, "Cipher init encountered issue: ${e.message}")
+        if (SecureVaultKeyManager.isKeyPermanentlyInvalidated(e)) {
+          _isLoading.value = false
+          val alertState = SecureVaultBiometricTracker.evaluateBiometricKeyInvalidation(activity)
+          _biometricRosterAlert.value = alertState
+          _showPassphrasePrompt.value = true
+          return@launch
         }
+      }
 
+      try {
         authManager.promptBiometric(
           activity = activity,
           cipher = cipher,
@@ -196,12 +243,25 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
           },
           onError = { err ->
             _isLoading.value = false
-            _errorMessage.value = err
+            val lower = err.lowercase()
+            if (lower.contains("invalidated") || lower.contains("key permanently") || lower.contains("roster")) {
+              val alertState = SecureVaultBiometricTracker.evaluateBiometricKeyInvalidation(activity)
+              _biometricRosterAlert.value = alertState
+              _showPassphrasePrompt.value = true
+            } else {
+              _errorMessage.value = err
+            }
           }
         )
       } catch (e: Exception) {
         _isLoading.value = false
-        _errorMessage.value = "Failed to start biometric authentication: ${e.message}"
+        if (SecureVaultKeyManager.isKeyPermanentlyInvalidated(e)) {
+          val alertState = SecureVaultBiometricTracker.evaluateBiometricKeyInvalidation(activity)
+          _biometricRosterAlert.value = alertState
+          _showPassphrasePrompt.value = true
+        } else {
+          _errorMessage.value = "Failed to start biometric authentication: ${e.message}"
+        }
       }
     }
   }

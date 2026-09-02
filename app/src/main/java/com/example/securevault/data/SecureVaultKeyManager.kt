@@ -60,7 +60,7 @@ object SecureVaultKeyManager {
       .setUserAuthenticationRequired(true)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      builder.setInvalidatedByBiometricEnrollment(false)
+      builder.setInvalidatedByBiometricEnrollment(true)
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -101,6 +101,36 @@ object SecureVaultKeyManager {
     val key = SecretKeySpec(keyBytes, "AES")
     jvmTestFallbackKey = key
     return key
+  }
+
+  fun isKeyPermanentlyInvalidated(e: Throwable): Boolean {
+    var curr: Throwable? = e
+    while (curr != null) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+        curr is android.security.keystore.KeyPermanentlyInvalidatedException
+      ) {
+        return true
+      }
+      val msg = curr.message?.lowercase() ?: ""
+      if (msg.contains("permanently invalidated") || msg.contains("key invalidated") || msg.contains("user changed")) {
+        return true
+      }
+      curr = curr.cause
+    }
+    return false
+  }
+
+  fun resetAndRegenerateKey(): SecretKey {
+    try {
+      val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+      if (keyStore.containsAlias(KEY_ALIAS)) {
+        keyStore.deleteEntry(KEY_ALIAS)
+        Log.i(TAG, "Deleted invalidated KeyStore alias '$KEY_ALIAS'")
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not delete alias before regeneration: ${e.message}")
+    }
+    return generateKey(useStrongBox = true)
   }
 
   fun initEncryptCipher(): Cipher {

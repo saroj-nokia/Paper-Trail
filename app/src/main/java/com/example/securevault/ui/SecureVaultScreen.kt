@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -64,6 +65,7 @@ import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -81,6 +83,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -107,6 +110,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -123,6 +128,8 @@ import com.example.data.security.SecurityAuditPreferences
 import com.example.data.security.SecurityIntegrityAuditor
 import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
+import com.example.securevault.security.BiometricRosterState
+import com.example.securevault.security.VaultUpdateType
 import com.example.ui.screens.auth.SecurityIntegrityGateScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -155,6 +162,8 @@ fun SecureVaultScreen(
   val activeMediaPlayback by viewModel.activeMediaPlayback.collectAsStateWithLifecycle()
   val storageLocation by viewModel.storageLocation.collectAsStateWithLifecycle()
   val customFolderUri by viewModel.customFolderUriString.collectAsStateWithLifecycle()
+  val biometricRosterAlert by viewModel.biometricRosterAlert.collectAsStateWithLifecycle()
+  val showPassphrasePrompt by viewModel.showPassphrasePrompt.collectAsStateWithLifecycle()
 
   // Hardware Security Strict Gate check
   val isStrictGateEnabled = remember { SecurityAuditPreferences.isStrictGateEnabled(context) }
@@ -278,6 +287,9 @@ fun SecureVaultScreen(
         activity?.let {
           viewModel.unlockVault(it)
         }
+      },
+      onPassphraseUnlock = {
+        viewModel.openPassphrasePrompt()
       },
       isLoading = isLoading || isAuditing
     )
@@ -744,6 +756,19 @@ fun SecureVaultScreen(
       onDismiss = { showCryptoTerminal = false }
     )
   }
+
+  // Master Passphrase / PIN Re-Enrollment & Unlock Dialog
+  if (showPassphrasePrompt) {
+    MasterPassphraseDialog(
+      alertState = biometricRosterAlert,
+      onVerify = { input ->
+        activity?.let { act ->
+          viewModel.verifyMasterPassphraseAndReEnroll(input, act)
+        }
+      },
+      onDismiss = { viewModel.dismissBiometricAlert() }
+    )
+  }
 }
 
 @Composable
@@ -1178,6 +1203,7 @@ private fun StorageLocationOptionCard(
 @Composable
 private fun SecureVaultLockGate(
   onUnlock: () -> Unit,
+  onPassphraseUnlock: () -> Unit,
   isLoading: Boolean
 ) {
   Box(
@@ -1248,8 +1274,123 @@ private fun SecureVaultLockGate(
           Text("Unlock SecureVault", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
       }
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      OutlinedButton(
+        onClick = onPassphraseUnlock,
+        enabled = !isLoading,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(48.dp)
+          .testTag("securevault_passphrase_button")
+      ) {
+        Icon(Icons.Default.Key, contentDescription = null, tint = SecureVaultAmber, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Use Master Passphrase", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+      }
     }
   }
+}
+
+@Composable
+private fun MasterPassphraseDialog(
+  alertState: BiometricRosterState?,
+  onVerify: (String) -> Unit,
+  onDismiss: () -> Unit
+) {
+  var passphrase by remember { mutableStateOf("") }
+  var isPasswordVisible by remember { mutableStateOf(false) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    icon = {
+      Icon(
+        imageVector = if (alertState?.isRogueAlert == true) Icons.Default.WarningAmber else Icons.Default.Key,
+        contentDescription = null,
+        tint = if (alertState?.isRogueAlert == true) MaterialTheme.colorScheme.error else SecureVaultAmber,
+        modifier = Modifier.size(36.dp)
+      )
+    },
+    title = {
+      Text(
+        text = when {
+          alertState?.isRogueAlert == true -> "Biometric Settings Changed"
+          alertState?.updateType == VaultUpdateType.OS_UPDATE -> "System OS Update Detected"
+          alertState?.updateType == VaultUpdateType.APP_UPDATE -> "App Update Detected"
+          else -> "Master Passphrase"
+        },
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center
+      )
+    },
+    text = {
+      Column(modifier = Modifier.fillMaxWidth()) {
+        if (alertState != null) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(8.dp))
+              .background(if (alertState.isRogueAlert) MaterialTheme.colorScheme.errorContainer else SecureVaultAmberContainer)
+              .padding(12.dp)
+          ) {
+            Text(
+              text = alertState.alertMessage,
+              style = MaterialTheme.typography.bodySmall,
+              color = if (alertState.isRogueAlert) MaterialTheme.colorScheme.onErrorContainer else SecureVaultOnAmberContainer,
+              lineHeight = 18.sp
+            )
+          }
+          Spacer(modifier = Modifier.height(16.dp))
+        } else {
+          Text(
+            text = "Enter your Master Passphrase or PIN to verify identity and unlock your hardware-encrypted vault.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+          Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        OutlinedTextField(
+          value = passphrase,
+          onValueChange = { passphrase = it },
+          label = { Text("Master Passphrase / PIN") },
+          singleLine = true,
+          visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+          trailingIcon = {
+            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+              Icon(
+                imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                contentDescription = if (isPasswordVisible) "Hide passphrase" else "Show passphrase"
+              )
+            }
+          },
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("master_passphrase_input")
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          if (passphrase.isNotBlank()) {
+            onVerify(passphrase)
+          }
+        },
+        enabled = passphrase.isNotBlank(),
+        colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber),
+        modifier = Modifier.testTag("confirm_master_passphrase_button")
+      ) {
+        Text(if (alertState != null) "Verify & Re-Sync" else "Unlock Vault")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Cancel")
+      }
+    }
+  )
 }
 
 @Composable

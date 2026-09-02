@@ -19,6 +19,11 @@ class SecureVaultAuthManager(private val context: Context) {
   var activeCipher: Cipher? = null
     private set
 
+  fun unlockDirectly(cipher: Cipher? = null) {
+    activeCipher = cipher
+    _isUnlocked.value = true
+  }
+
   fun lock() {
     _isUnlocked.value = false
     activeCipher = null
