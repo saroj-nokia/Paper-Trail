@@ -1,0 +1,146 @@
+name: Android CI (Debug & Release Build)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type to compile'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - debug
+          - release
+      build_bundle:
+        description: 'Also generate Release Android App Bundle (.aab)'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------
+  # Job 1: Build Debug APK
+  # ----------------------------------------------------------------------
+  build-debug:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'debug' }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Debug Keystore
+        run: |
+          if [ -f "debug.keystore.base64" ]; then
+            echo "Decoding debug.keystore from base64..."
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f "debug.keystore" ]; then
+            echo "Generating fallback debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  # ----------------------------------------------------------------------
+  # Job 2: Build Release APK & AAB
+  # ----------------------------------------------------------------------
+  build-release:
+    name: Build Release APK & Bundle
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_type == 'all' || github.event.inputs.build_type == 'release' }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Release Keystore & Credentials
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 || secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PWD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PWD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          KEYSTORE_DEST="${GITHUB_WORKSPACE}/my-upload-key.jks"
+
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Found release keystore secret. Decoding to $KEYSTORE_DEST..."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_DEST"
+            echo "KEYSTORE_PATH=$KEYSTORE_DEST" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=${STORE_PWD}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${KEY_PWD}" >> $GITHUB_ENV
+          else
+            echo "Notice: No KEYSTORE_BASE64 secret found. Generating CI release signing keystore..."
+            DEFAULT_PWD="androidReleaseKeyPass2026!"
+            keytool -genkey -v -keystore "$KEYSTORE_DEST" \
+              -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$DEFAULT_PWD" -keypass "$DEFAULT_PWD" \
+              -dname "CN=AI Studio Release,OU=Android,O=GoogleAIStudio,L=Mountain View,ST=CA,C=US"
+
+            echo "KEYSTORE_PATH=$KEYSTORE_DEST" >> $GITHUB_ENV
+            echo "STORE_PASSWORD=$DEFAULT_PWD" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$DEFAULT_PWD" >> $GITHUB_ENV
+          fi
+
+      - name: Grant Execute Permission for Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: Build Release APK
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Build Release App Bundle (AAB)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_bundle == true || github.event.inputs.build_bundle == 'true' }}
+        run: ./gradlew :app:bundleRelease --stacktrace
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
+      - name: Upload Release AAB Artifact
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_bundle == true || github.event.inputs.build_bundle == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/*.aab
+          retention-days: 14
