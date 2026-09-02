@@ -111,7 +111,30 @@ fun SecureImageViewerScreen(
         isDecoding = true
         decodeError = false
         try {
-          val bitmap = BitmapFactory.decodeByteArray(decryptedBytes, 0, decryptedBytes.size)
+          // Read image bounds first to compute safe inSampleSize without full memory allocation
+          val boundsOptions = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+          }
+          BitmapFactory.decodeByteArray(decryptedBytes, 0, decryptedBytes.size, boundsOptions)
+          val rawW = boundsOptions.outWidth
+          val rawH = boundsOptions.outHeight
+
+          // Ensure bitmap dimensions don't exceed OpenGL / Android Canvas max limits (max 4096px / 64MB)
+          val maxDimension = 4096
+          var sampleSize = 1
+          while (
+            (rawW > 0 && (rawW / sampleSize) > maxDimension) ||
+            (rawH > 0 && (rawH / sampleSize) > maxDimension) ||
+            ((rawW.toLong() * rawH.toLong() * 4L) / (sampleSize.toLong() * sampleSize.toLong()) > 48L * 1024L * 1024L)
+          ) {
+            sampleSize *= 2
+          }
+
+          val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+          }
+          val bitmap = BitmapFactory.decodeByteArray(decryptedBytes, 0, decryptedBytes.size, decodeOptions)
           if (bitmap != null) {
             decodedBitmap = bitmap
           } else {

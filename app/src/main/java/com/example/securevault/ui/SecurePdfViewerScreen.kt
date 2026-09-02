@@ -174,10 +174,13 @@ fun SecurePdfViewerScreen(
                 if (!renderedBitmaps.containsKey(pageIdx)) {
                   try {
                     val page = renderer.openPage(pageIdx)
-                    // High-resolution bitmap render for crisp text reading
-                    val densityMultiplier = 2f
-                    val width = (page.width * densityMultiplier).toInt().coerceAtLeast(1)
-                    val height = (page.height * densityMultiplier).toInt().coerceAtLeast(1)
+                    // High-resolution bitmap render capped to safe max dimensions (max 3840px / 32MB)
+                    val baseW = page.width.toFloat().coerceAtLeast(1f)
+                    val baseH = page.height.toFloat().coerceAtLeast(1f)
+                    val maxDimension = 3840f
+                    val densityMultiplier = (maxDimension / maxOf(baseW, baseH)).coerceIn(0.5f, 2f)
+                    val width = (baseW * densityMultiplier).toInt().coerceAtLeast(1)
+                    val height = (baseH * densityMultiplier).toInt().coerceAtLeast(1)
                     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                     bitmap.eraseColor(AndroidColor.WHITE)
                     page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
