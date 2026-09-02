@@ -1435,6 +1435,13 @@ private fun MasterPassphraseDialog(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
+          Spacer(modifier = Modifier.height(8.dp))
+          Text(
+            text = "Tip: If you have not set a custom PIN yet, default initial PIN is 123456.",
+            style = MaterialTheme.typography.bodySmall,
+            fontSize = 11.sp,
+            color = SecureVaultAmber
+          )
           Spacer(modifier = Modifier.height(14.dp))
         }
 
@@ -1565,8 +1572,26 @@ private fun MasterCredentialSetupDialog(
           .fillMaxWidth()
           .verticalScroll(rememberScrollState())
       ) {
+        if (!isConfigured) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(8.dp))
+              .background(SecureVaultAmberContainer)
+              .padding(10.dp)
+          ) {
+            Text(
+              text = "No custom Master PIN or Passphrase has been configured yet. Set one now to ensure easy recovery if your biometric settings change.",
+              style = MaterialTheme.typography.bodySmall,
+              color = SecureVaultOnAmberContainer,
+              lineHeight = 16.sp
+            )
+          }
+          Spacer(modifier = Modifier.height(10.dp))
+        }
+
         Text(
-          text = "Select whether you want to use a numeric PIN or a full alphanumeric Master Passphrase as the root fallback authentication token.",
+          text = "Select whether you want to use a numeric PIN or a full alphanumeric Master Passphrase as your root fallback token.",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -138,7 +138,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   }
 
   fun isMasterCredentialConfigured(): Boolean {
-    return SecureVaultBiometricTracker.isMasterPassphraseSet(getApplication())
+    return SecureVaultBiometricTracker.isExplicitlyConfigured(getApplication())
   }
 
   fun openCredentialSetupDialog() {
@@ -155,9 +155,9 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
     type: MasterCredentialType
   ): Boolean {
     val context = getApplication<Application>()
-    val isAlreadySet = SecureVaultBiometricTracker.isMasterPassphraseSet(context)
+    val isExplicit = SecureVaultBiometricTracker.isExplicitlyConfigured(context)
 
-    if (isAlreadySet && currentSecret != null) {
+    if (isExplicit && currentSecret != null) {
       val (success, message) = SecureVaultBiometricTracker.changeMasterCredential(context, currentSecret, newSecret, type)
       if (success) {
         _masterCredentialType.value = type

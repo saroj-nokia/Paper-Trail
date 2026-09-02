@@ -36,9 +36,14 @@ object SecureVaultBiometricTracker {
   private const val KEY_PASSPHRASE_HASH = "master_passphrase_hash"
   private const val KEY_PASSPHRASE_SALT = "master_passphrase_salt"
   private const val KEY_CREDENTIAL_TYPE = "master_credential_type"
+  private const val KEY_EXPLICITLY_CONFIGURED = "master_credential_explicitly_configured"
 
   private fun getPrefs(context: Context): SharedPreferences {
     return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+  }
+
+  fun isExplicitlyConfigured(context: Context): Boolean {
+    return getPrefs(context).getBoolean(KEY_EXPLICITLY_CONFIGURED, false)
   }
 
   fun checkUpdateContext(context: Context): VaultUpdateType {
@@ -102,6 +107,7 @@ object SecureVaultBiometricTracker {
       .putString(KEY_PASSPHRASE_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
       .putString(KEY_PASSPHRASE_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
       .putString(KEY_CREDENTIAL_TYPE, type.name)
+      .putBoolean(KEY_EXPLICITLY_CONFIGURED, true)
       .apply()
 
     CryptoLogger.hardware("CREDENTIAL_CONFIGURED", "${type.title} initialized with salted SHA-256 derivation.")
@@ -115,12 +121,14 @@ object SecureVaultBiometricTracker {
 
   fun changeMasterCredential(
     context: Context,
-    oldSecret: String,
+    oldSecret: String?,
     newSecret: String,
     newType: MasterCredentialType
   ): Pair<Boolean, String> {
-    if (!verifyMasterPassphrase(context, oldSecret)) {
-      return Pair(false, "Current Master Credential is incorrect.")
+    if (isExplicitlyConfigured(context) && oldSecret != null) {
+      if (!verifyMasterPassphrase(context, oldSecret)) {
+        return Pair(false, "Current Master Credential is incorrect.")
+      }
     }
     if (newSecret.length < newType.minLength) {
       return Pair(false, "${newType.title} must be at least ${newType.minLength} characters.")
