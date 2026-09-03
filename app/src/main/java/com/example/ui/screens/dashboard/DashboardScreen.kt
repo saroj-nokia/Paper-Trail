@@ -204,7 +204,11 @@ fun DashboardScreen(
           }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-          containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.background
+          containerColor = if (frostedGlassEnabled) {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+          } else {
+            MaterialTheme.colorScheme.background
+          }
         ),
         modifier = if (frostedGlassEnabled) {
           Modifier.frostedGlassTopBar(hazeState, enabled = true)
