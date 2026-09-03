@@ -19,6 +19,8 @@
         <!-- Exclude SecureVault encrypted blob files and internal receipts in files directory -->
         <exclude domain="file" path="securevault"/>
         <exclude domain="file" path="receipts"/>
+        <exclude domain="file" path="securevault_meta_shadow.json"/>
+        <exclude domain="root" path="no_backup/securevault_meta_shadow.json"/>
 
         <!-- Exclude app-specific external storage SecureVault directory -->
         <exclude domain="external" path="securevault"/>
@@ -38,6 +40,8 @@
         <!-- Exclude SecureVault encrypted blob files and receipts from device-to-device migration -->
         <exclude domain="file" path="securevault"/>
         <exclude domain="file" path="receipts"/>
+        <exclude domain="file" path="securevault_meta_shadow.json"/>
+        <exclude domain="root" path="no_backup/securevault_meta_shadow.json"/>
 
         <!-- Exclude app-specific external storage SecureVault directory -->
         <exclude domain="external" path="securevault"/>

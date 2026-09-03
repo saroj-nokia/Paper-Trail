@@ -214,6 +214,9 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
     _biometricRosterAlert.value = null
     _showPassphrasePrompt.value = false
     authManager.lock()
+    viewModelScope.launch {
+      com.example.securevault.data.SecureVaultMetadataSafety.clearShadowSnapshot(activity)
+    }
     _errorMessage.value = "Vault hardware key has been reset. All previous encrypted files remain permanently inaccessible. Please configure a new Master Credential."
   }
 
