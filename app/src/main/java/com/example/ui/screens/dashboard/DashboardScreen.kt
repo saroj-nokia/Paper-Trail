@@ -202,7 +202,7 @@ fun DashboardScreen(
             )
           }
         },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+        colors = TopAppBarDefaults.topAppBarColors(
           containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.background
         ),
         modifier = if (frostedGlassEnabled) {

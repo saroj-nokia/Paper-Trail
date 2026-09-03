@@ -24,9 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -131,7 +131,7 @@ fun PerforatedReceiptCard(
             contentAlignment = Alignment.Center
           ) {
             Icon(
-              imageVector = Icons.Default.ReceiptLong,
+              imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
               contentDescription = null,
               tint = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(28.dp)
@@ -191,12 +191,12 @@ fun PerforatedReceiptCard(
       DashedDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
       // Badges footer row
-      Row(
+      FlowRow(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(6.dp)
       ) {
         CategoryBadge(category = item.category)
 

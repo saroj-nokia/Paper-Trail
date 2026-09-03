@@ -119,6 +119,7 @@ dependencies {
   implementation(libs.haze)
   implementation(libs.haze.materials)
 
+  testImplementation(platform(libs.androidx.compose.bom))
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
