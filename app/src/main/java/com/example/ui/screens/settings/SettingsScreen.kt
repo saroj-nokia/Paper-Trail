@@ -77,6 +77,7 @@ import com.example.ui.theme.AmberAlertOnContainer
 import com.example.ui.theme.ForestContainer
 import com.example.ui.theme.ForestOnContainer
 import com.example.ui.theme.ForestPrimary
+import com.example.ui.theme.LocalBottomBarPadding
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.LocalSetFrostedGlassEnabled
@@ -151,9 +152,9 @@ fun SettingsScreen(
     snackbarHost = { SnackbarHost(snackbarHostState) },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
+    val bottomBarPadding = LocalBottomBarPadding.current
     val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
     val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
-    val extraBottomPadding = if (frostedGlassEnabled) 80.dp else 0.dp
 
     Column(
       modifier = Modifier
@@ -164,8 +165,8 @@ fun SettingsScreen(
         .padding(
           start = 16.dp,
           end = 16.dp,
-          top = 16.dp + extraTopPadding,
-          bottom = 16.dp + extraBottomPadding
+          top = 12.dp + extraTopPadding,
+          bottom = 16.dp + bottomBarPadding
         ),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

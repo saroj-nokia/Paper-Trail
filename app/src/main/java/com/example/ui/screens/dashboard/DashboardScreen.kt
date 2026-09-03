@@ -78,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.ui.theme.LocalBottomBarPadding
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.frostedGlassSource
@@ -215,9 +216,9 @@ fun DashboardScreen(
     snackbarHost = { SnackbarHost(snackbarHostState) },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
+    val bottomBarPadding = LocalBottomBarPadding.current
     val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
     val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
-    val extraBottomPadding = if (frostedGlassEnabled) 80.dp else 0.dp
 
     LazyColumn(
       modifier = Modifier
@@ -228,7 +229,7 @@ fun DashboardScreen(
         start = 16.dp,
         end = 16.dp,
         top = 12.dp + extraTopPadding,
-        bottom = 12.dp + extraBottomPadding
+        bottom = 12.dp + bottomBarPadding
       ),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

@@ -3,6 +3,7 @@ package com.example.ui.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
@@ -47,6 +48,7 @@ import com.example.ui.screens.detail.ItemDetailEditScreen
 import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.tutorial.TutorialScreen
 import com.example.ui.screens.vault.VaultListScreen
+import com.example.ui.theme.LocalBottomBarPadding
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.LocalSetFrostedGlassEnabled
@@ -127,6 +129,7 @@ fun PaperTrailAppContent(
       )
 
       Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
           if (showBottomBar) {
             NavigationBar(
@@ -164,14 +167,17 @@ fun PaperTrailAppContent(
           }
         }
       ) { paddingValues ->
-        val bottomPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateBottomPadding()
-        NavHost(
-          navController = navController,
-          startDestination = startDestination,
-          modifier = Modifier.padding(
-            top = paddingValues.calculateTopPadding(),
-            bottom = bottomPadding
-          ),
+        val bottomBarHeight = if (showBottomBar) paddingValues.calculateBottomPadding() else 0.dp
+        val bottomPadding = if (frostedGlassEnabled) 0.dp else bottomBarHeight
+        CompositionLocalProvider(
+          LocalBottomBarPadding provides (if (frostedGlassEnabled) bottomBarHeight else 0.dp)
+        ) {
+          NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(
+              bottom = bottomPadding
+            ),
         enterTransition = { androidx.compose.animation.fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn) },
         exitTransition = { androidx.compose.animation.fadeOut(com.example.ui.theme.PaperTrailMotion.fadeOut) },
         popEnterTransition = { androidx.compose.animation.fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn) },
@@ -272,5 +278,6 @@ fun PaperTrailAppContent(
       }
     }
   }
+}
 }
 }

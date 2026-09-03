@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.PerforatedReceiptCard
 import com.example.ui.theme.ForestPrimary
+import com.example.ui.theme.LocalBottomBarPadding
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.frostedGlassSource
@@ -156,11 +157,14 @@ fun VaultListScreen(
       )
     },
     floatingActionButton = {
+      val bottomBarPadding = LocalBottomBarPadding.current
       FloatingActionButton(
         onClick = onNavigateToCapture,
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
-        modifier = Modifier.testTag("fab_scan_receipt")
+        modifier = Modifier
+          .padding(bottom = bottomBarPadding)
+          .testTag("fab_scan_receipt")
       ) {
         Row(
           modifier = Modifier.padding(horizontal = 16.dp),
@@ -174,18 +178,14 @@ fun VaultListScreen(
     },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
-    val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
-    val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+    val bottomBarPadding = LocalBottomBarPadding.current
 
     Column(
       modifier = Modifier
         .fillMaxSize()
-        .padding(top = topPadding)
+        .padding(top = paddingValues.calculateTopPadding())
         .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
     ) {
-      if (extraTopPadding > 0.dp) {
-        Spacer(modifier = Modifier.height(extraTopPadding))
-      }
       // 1. Search Bar
       OutlinedTextField(
         value = searchQuery,
@@ -298,6 +298,7 @@ fun VaultListScreen(
         Box(
           modifier = Modifier
             .fillMaxSize()
+            .padding(bottom = bottomBarPadding)
             .padding(32.dp),
           contentAlignment = Alignment.Center
         ) {
@@ -346,7 +347,7 @@ fun VaultListScreen(
       } else {
         LazyColumn(
           modifier = Modifier.fillMaxSize(),
-          contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+          contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp + bottomBarPadding),
           verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
           items(items, key = { it.id }) { item ->

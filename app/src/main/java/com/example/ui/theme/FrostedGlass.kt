@@ -22,6 +22,7 @@ import dev.chrisbanes.haze.hazeSource
 val LocalFrostedGlassEnabled = compositionLocalOf { false }
 val LocalSetFrostedGlassEnabled = staticCompositionLocalOf<(Boolean) -> Unit> { {} }
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
+val LocalBottomBarPadding = compositionLocalOf { 0.dp }
 
 // Default dark theme glass tuning matching the app's palette
 val GlassTintAlpha = 0.72f

@@ -128,6 +128,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.security.IntegrityReport
+import com.example.ui.theme.LocalBottomBarPadding
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.frostedGlassSource
@@ -382,6 +383,7 @@ fun SecureVaultScreen(
         )
       },
       floatingActionButton = {
+        val bottomBarPadding = LocalBottomBarPadding.current
         ExtendedFloatingActionButton(
           onClick = {
             filePickerLauncher.launch(arrayOf("*/*"))
@@ -390,24 +392,22 @@ fun SecureVaultScreen(
           text = { Text("Add File", fontWeight = FontWeight.Bold) },
           containerColor = SecureVaultAmber,
           contentColor = Color.White,
-          modifier = Modifier.testTag("securevault_add_file_fab")
+          modifier = Modifier
+            .padding(bottom = bottomBarPadding)
+            .testTag("securevault_add_file_fab")
         )
       },
       snackbarHost = { SnackbarHost(snackbarHostState) },
       containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-      val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
-      val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+      val bottomBarPadding = LocalBottomBarPadding.current
 
       Column(
         modifier = Modifier
           .fillMaxSize()
-          .padding(top = topPadding)
+          .padding(top = paddingValues.calculateTopPadding())
           .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
       ) {
-        if (extraTopPadding > 0.dp) {
-          Spacer(modifier = Modifier.height(extraTopPadding))
-        }
         // Security Status & Storage Mode Banner
         Box(
           modifier = Modifier
@@ -594,6 +594,7 @@ fun SecureVaultScreen(
             modifier = Modifier
               .weight(1f)
               .fillMaxWidth()
+              .padding(bottom = bottomBarPadding)
               .padding(32.dp),
             contentAlignment = Alignment.Center
           ) {
@@ -648,7 +649,7 @@ fun SecureVaultScreen(
               .weight(1f)
               .fillMaxWidth()
               .testTag("securevault_files_list"),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp + bottomBarPadding),
             verticalArrangement = Arrangement.spacedBy(10.dp)
           ) {
             items(secureFiles, key = { it.id }) { item ->
