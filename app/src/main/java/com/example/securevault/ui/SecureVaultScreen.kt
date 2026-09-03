@@ -134,6 +134,7 @@ import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
 import com.example.securevault.security.BiometricRosterState
 import com.example.securevault.security.MasterCredentialType
+import com.example.securevault.security.SecureVaultBiometricTracker
 import com.example.securevault.security.VaultUpdateType
 import com.example.ui.screens.auth.SecurityIntegrityGateScreen
 import kotlinx.coroutines.Dispatchers
@@ -780,6 +781,11 @@ fun SecureVaultScreen(
           viewModel.verifyMasterPassphraseAndReEnroll(input, act)
         }
       },
+      onResetUnrecoverable = {
+        activity?.let { act ->
+          viewModel.resetVaultAfterUnrecoverableInvalidation(act)
+        }
+      },
       onDismiss = { viewModel.dismissBiometricAlert() }
     )
   }
@@ -812,6 +818,7 @@ private fun StorageSettingsDialog(
 ) {
   var selectedLocation by remember { mutableStateOf(currentLocation) }
   var migrateExisting by remember { mutableStateOf(true) }
+  val context = LocalContext.current
 
   Dialog(onDismissRequest = onDismiss) {
     Surface(
@@ -972,6 +979,7 @@ private fun StorageSettingsDialog(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Column(modifier = Modifier.weight(1f)) {
+            val isMasterConfigured = remember { SecureVaultBiometricTracker.isExplicitlyConfigured(context) }
             Text(
               text = "Master Security Credential",
               style = MaterialTheme.typography.labelLarge,
@@ -979,10 +987,10 @@ private fun StorageSettingsDialog(
               color = MaterialTheme.colorScheme.primary
             )
             Text(
-              text = "Active fallback: ${masterCredentialType.title} • Key recovery token",
+              text = if (isMasterConfigured) "Active fallback: ${masterCredentialType.title} • Key recovery token" else "Status: Not configured • Setup required for recovery",
               style = MaterialTheme.typography.bodySmall,
               fontSize = 11.sp,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
+              color = if (isMasterConfigured) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
             )
           }
         }
@@ -993,6 +1001,7 @@ private fun StorageSettingsDialog(
             .fillMaxWidth()
             .testTag("configure_master_credential_button")
         ) {
+          val isMasterConfigured = remember { SecureVaultBiometricTracker.isExplicitlyConfigured(context) }
           Icon(
             imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
             contentDescription = null,
@@ -1001,7 +1010,7 @@ private fun StorageSettingsDialog(
           )
           Spacer(modifier = Modifier.width(6.dp))
           Text(
-            "Configure / Change PIN or Passphrase",
+            if (isMasterConfigured) "Change Master PIN or Passphrase" else "Set Up Master Recovery Credential",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = SecureVaultAmber
@@ -1383,11 +1392,79 @@ private fun MasterPassphraseDialog(
   alertState: BiometricRosterState?,
   defaultCredentialType: MasterCredentialType = MasterCredentialType.PIN,
   onVerify: (String) -> Unit,
+  onResetUnrecoverable: () -> Unit = {},
   onDismiss: () -> Unit
 ) {
   var passphrase by remember { mutableStateOf("") }
   var isPasswordVisible by remember { mutableStateOf(false) }
   var activeMode by remember { mutableStateOf(defaultCredentialType) }
+  val context = LocalContext.current
+  val lockoutSeconds: Long = remember(context, passphrase) {
+    SecureVaultBiometricTracker.getRemainingLockoutSeconds(context)
+  }
+
+  val isUnrecoverable = alertState != null && !alertState.hasMasterCredential
+
+  if (isUnrecoverable) {
+    AlertDialog(
+      onDismissRequest = onDismiss,
+      icon = {
+        Icon(
+          imageVector = Icons.Default.WarningAmber,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.error,
+          modifier = Modifier.size(36.dp)
+        )
+      },
+      title = {
+        Text(
+          text = "Vault Key Invalidated",
+          fontWeight = FontWeight.Bold,
+          textAlign = TextAlign.Center
+        )
+      },
+      text = {
+        Column(modifier = Modifier.fillMaxWidth()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(8.dp))
+              .background(MaterialTheme.colorScheme.errorContainer)
+              .padding(12.dp)
+          ) {
+            Text(
+              text = alertState.alertMessage,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onErrorContainer,
+              lineHeight = 18.sp
+            )
+          }
+          Spacer(modifier = Modifier.height(14.dp))
+          Text(
+            text = "Action required: Resetting the vault will generate a new cryptographic hardware key and clear invalidation flags so you can resume using SecureVault. Any previously encrypted files cannot be decrypted and will be permanently lost.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 16.sp
+          )
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = onResetUnrecoverable,
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+          modifier = Modifier.testTag("reset_unrecoverable_vault_button")
+        ) {
+          Text("Reset Hardware Key")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = onDismiss) {
+          Text("Cancel")
+        }
+      }
+    )
+    return
+  }
 
   AlertDialog(
     onDismissRequest = onDismiss,
@@ -1431,18 +1508,29 @@ private fun MasterPassphraseDialog(
           Spacer(modifier = Modifier.height(14.dp))
         } else {
           Text(
-            text = "Enter your ${activeMode.title} to verify identity and unlock your hardware-encrypted vault.",
+            text = "Enter your configured ${activeMode.title} to verify identity and unlock your hardware-encrypted vault.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
-          Spacer(modifier = Modifier.height(8.dp))
-          Text(
-            text = "Tip: If you have not set a custom PIN yet, default initial PIN is 123456.",
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 11.sp,
-            color = SecureVaultAmber
-          )
           Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        if (lockoutSeconds > 0) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(8.dp))
+              .background(MaterialTheme.colorScheme.errorContainer)
+              .padding(10.dp)
+          ) {
+            Text(
+              text = "Verification temporarily locked out due to repeated failed attempts. Please wait $lockoutSeconds seconds before trying again.",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onErrorContainer,
+              lineHeight = 16.sp
+            )
+          }
+          Spacer(modifier = Modifier.height(12.dp))
         }
 
         // Mode switch tabs
@@ -1492,6 +1580,7 @@ private fun MasterPassphraseDialog(
           label = { Text(activeMode.title) },
           placeholder = { Text(if (activeMode == MasterCredentialType.PIN) "Enter PIN digits" else "Enter Passphrase") },
           singleLine = true,
+          enabled = lockoutSeconds == 0L,
           visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
           keyboardOptions = KeyboardOptions(keyboardType = if (activeMode == MasterCredentialType.PIN) KeyboardType.NumberPassword else KeyboardType.Password),
           trailingIcon = {
@@ -1511,11 +1600,11 @@ private fun MasterPassphraseDialog(
     confirmButton = {
       Button(
         onClick = {
-          if (passphrase.isNotBlank()) {
+          if (passphrase.isNotBlank() && lockoutSeconds == 0L) {
             onVerify(passphrase)
           }
         },
-        enabled = passphrase.isNotBlank(),
+        enabled = passphrase.isNotBlank() && lockoutSeconds == 0L,
         colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber),
         modifier = Modifier.testTag("confirm_master_passphrase_button")
       ) {
@@ -1581,7 +1670,7 @@ private fun MasterCredentialSetupDialog(
               .padding(10.dp)
           ) {
             Text(
-              text = "No custom Master PIN or Passphrase has been configured yet. Set one now to ensure easy recovery if your biometric settings change.",
+              text = "No custom Master PIN or Passphrase has been configured yet. Set one now through this explicit setup flow to ensure recovery if your biometric roster changes.",
               style = MaterialTheme.typography.bodySmall,
               color = SecureVaultOnAmberContainer,
               lineHeight = 16.sp
@@ -1591,7 +1680,7 @@ private fun MasterCredentialSetupDialog(
         }
 
         Text(
-          text = "Select whether you want to use a numeric PIN or a full alphanumeric Master Passphrase as your root fallback token.",
+          text = "Select whether you want to use a numeric PIN (minimum 6 digits) or an alphanumeric Master Passphrase as your root recovery credential.",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1637,6 +1726,38 @@ private fun MasterCredentialSetupDialog(
                 )
               }
             }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Security Recommendation
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selectedType == MasterCredentialType.PASSPHRASE) SecureVaultAmberContainer else MaterialTheme.colorScheme.surfaceVariant)
+            .padding(10.dp)
+        ) {
+          Row(verticalAlignment = Alignment.Top) {
+            Icon(
+              imageVector = Icons.Default.Security,
+              contentDescription = null,
+              tint = if (selectedType == MasterCredentialType.PASSPHRASE) SecureVaultAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (selectedType == MasterCredentialType.PASSPHRASE) {
+                "💡 Recommended: Master Passphrase provides superior resistance against offline brute-force attacks via PBKDF2 (210,000 iterations)."
+              } else {
+                "💡 Recommended: A Master Passphrase offers stronger cryptographic entropy than a numeric PIN against brute-force attacks."
+              },
+              style = MaterialTheme.typography.bodySmall,
+              fontSize = 11.sp,
+              color = if (selectedType == MasterCredentialType.PASSPHRASE) SecureVaultOnAmberContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+              lineHeight = 15.sp
+            )
           }
         }
 
@@ -1699,7 +1820,7 @@ private fun MasterCredentialSetupDialog(
             localError = null
           },
           label = { Text("New ${selectedType.title}") },
-          placeholder = { Text(if (isPin) "e.g., 123456" else "e.g., SecurePassphrase#2026") },
+          placeholder = { Text(if (isPin) "e.g., 6+ digits" else "e.g., SecurePassphrase#2026") },
           singleLine = true,
           visualTransformation = if (isNewVisible) VisualTransformation.None else PasswordVisualTransformation(),
           keyboardOptions = KeyboardOptions(keyboardType = if (isPin) KeyboardType.NumberPassword else KeyboardType.Password),
@@ -1775,7 +1896,7 @@ private fun MasterCredentialSetupDialog(
           }
           val success = onSave(if (isConfigured) currentSecret else null, newSecret, selectedType)
           if (!success) {
-            localError = "Failed to update credential. Check your current credential."
+            localError = "Failed to update credential. Please verify your current credential."
           }
         },
         colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber),

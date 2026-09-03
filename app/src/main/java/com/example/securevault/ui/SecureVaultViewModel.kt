@@ -16,6 +16,7 @@ import com.example.securevault.data.VaultStorageLocation
 import com.example.securevault.model.SecureFileItem
 import com.example.securevault.security.BiometricRosterState
 import com.example.securevault.security.MasterCredentialType
+import com.example.securevault.security.MasterCredentialVerifyResult
 import com.example.securevault.security.SecureVaultAuthManager
 import com.example.securevault.security.SecureVaultBiometricTracker
 import kotlinx.coroutines.Dispatchers
@@ -157,7 +158,11 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
     val context = getApplication<Application>()
     val isExplicit = SecureVaultBiometricTracker.isExplicitlyConfigured(context)
 
-    if (isExplicit && currentSecret != null) {
+    if (isExplicit) {
+      if (currentSecret.isNullOrBlank()) {
+        _errorMessage.value = "Current ${type.title} is required to change credentials."
+        return false
+      }
       val (success, message) = SecureVaultBiometricTracker.changeMasterCredential(context, currentSecret, newSecret, type)
       if (success) {
         _masterCredentialType.value = type
@@ -203,27 +208,51 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
     _showPassphrasePrompt.value = false
   }
 
-  fun verifyMasterPassphraseAndReEnroll(passphrase: String, activity: FragmentActivity): Boolean {
-    val isValid = SecureVaultBiometricTracker.verifyMasterPassphrase(activity, passphrase)
-    val credType = SecureVaultBiometricTracker.getMasterCredentialType(activity)
-    if (isValid) {
-      // Regenerate the Hardware KeyStore key for the new biometric roster
-      SecureVaultKeyManager.resetAndRegenerateKey()
-      SecureVaultBiometricTracker.recordCurrentMetrics(activity)
-      _biometricRosterAlert.value = null
-      _showPassphrasePrompt.value = false
+  fun resetVaultAfterUnrecoverableInvalidation(activity: FragmentActivity) {
+    SecureVaultKeyManager.resetAndRegenerateKey()
+    SecureVaultBiometricTracker.recordCurrentMetrics(activity)
+    _biometricRosterAlert.value = null
+    _showPassphrasePrompt.value = false
+    authManager.lock()
+    _errorMessage.value = "Vault hardware key has been reset. All previous encrypted files remain permanently inaccessible. Please configure a new Master Credential."
+  }
 
-      val newCipher = try {
-        SecureVaultKeyManager.initEncryptCipher()
-      } catch (e: Exception) {
-        null
+  fun verifyMasterPassphraseAndReEnroll(passphrase: String, activity: FragmentActivity): Boolean {
+    val credType = SecureVaultBiometricTracker.getMasterCredentialType(activity)
+    return when (val result = SecureVaultBiometricTracker.verifyMasterCredential(activity, passphrase)) {
+      is MasterCredentialVerifyResult.Success -> {
+        // Regenerate the Hardware KeyStore key for the new biometric roster
+        SecureVaultKeyManager.resetAndRegenerateKey()
+        SecureVaultBiometricTracker.recordCurrentMetrics(activity)
+        _biometricRosterAlert.value = null
+        _showPassphrasePrompt.value = false
+
+        val newCipher = try {
+          SecureVaultKeyManager.initEncryptCipher()
+        } catch (e: Exception) {
+          null
+        }
+        authManager.unlockDirectly(newCipher)
+        _infoMessage.value = "Identity verified via ${credType.title}. Hardware vault unlocked."
+        true
       }
-      authManager.unlockDirectly(newCipher)
-      _infoMessage.value = "Identity verified via ${credType.title}. Hardware vault unlocked."
-      return true
-    } else {
-      _errorMessage.value = "Incorrect ${credType.title}. Please try again."
-      return false
+      is MasterCredentialVerifyResult.LockedOut -> {
+        _errorMessage.value = "Too many failed attempts. Verification locked out for ${result.remainingSeconds} seconds."
+        false
+      }
+      is MasterCredentialVerifyResult.InvalidCredential -> {
+        val remainingMsg = if (result.attemptsRemaining > 0) {
+          " (${result.attemptsRemaining} attempts left before lockout)"
+        } else {
+          ""
+        }
+        _errorMessage.value = "Incorrect ${credType.title}. Please try again$remainingMsg."
+        false
+      }
+      is MasterCredentialVerifyResult.NotConfigured -> {
+        _errorMessage.value = "No Master Credential has been configured. Existing vault files cannot be recovered."
+        false
+      }
     }
   }
 

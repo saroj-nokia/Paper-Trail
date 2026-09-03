@@ -8,11 +8,13 @@
         <!-- Exclude internal databases (SQLCipher encrypted & plain receipts/vault databases) -->
         <exclude domain="database" path="."/>
 
-        <!-- Exclude EncryptedSharedPreferences storing database master keys and passphrases -->
+        <!-- Exclude EncryptedSharedPreferences storing database master keys, passphrases, and biometric tracker -->
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs.xml"/>
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs_fallback.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs_fallback.xml"/>
+        <exclude domain="sharedpref" path="securevault_system_integrity.xml"/>
+        <exclude domain="sharedpref" path="securevault_system_integrity_fallback.xml"/>
 
         <!-- Exclude SecureVault encrypted blob files and internal receipts in files directory -->
         <exclude domain="file" path="securevault"/>
@@ -30,6 +32,8 @@
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs_fallback.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs_fallback.xml"/>
+        <exclude domain="sharedpref" path="securevault_system_integrity.xml"/>
+        <exclude domain="sharedpref" path="securevault_system_integrity_fallback.xml"/>
 
         <!-- Exclude SecureVault encrypted blob files and receipts from device-to-device migration -->
         <exclude domain="file" path="securevault"/>
