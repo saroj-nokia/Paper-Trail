@@ -44,6 +44,15 @@ object SecurityIntegrityAuditor {
   private const val TAG = "SecurityIntegrityAuditor"
   private const val PROBE_KEY_ALIAS = "_integrity_probe_key"
 
+  @Volatile
+  private var cachedReport: IntegrityReport? = null
+
+  fun getCachedReport(): IntegrityReport? = cachedReport
+
+  fun clearCache() {
+    cachedReport = null
+  }
+
   fun runFullAudit(context: Context): IntegrityReport {
     val items = mutableListOf<IntegrityCheckItem>()
 
@@ -65,11 +74,13 @@ object SecurityIntegrityAuditor {
     val hasCriticalFailures = items.any { it.status == IntegrityStatus.CRITICAL_FAILURE }
     val isEnvironmentSecure = !hasCriticalFailures
 
-    return IntegrityReport(
+    val report = IntegrityReport(
       items = items,
       isEnvironmentSecure = isEnvironmentSecure,
       hasCriticalFailures = hasCriticalFailures
     )
+    cachedReport = report
+    return report
   }
 
   /**

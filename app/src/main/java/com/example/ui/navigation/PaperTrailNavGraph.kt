@@ -1,6 +1,8 @@
 package com.example.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,9 +21,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -121,19 +125,35 @@ fun PaperTrailAppContent(
         Triple(Screen.Settings.route, "Security", Icons.Default.Shield)
       )
 
-      val showBottomBar = currentRoute in listOf(
-        Screen.Dashboard.route,
-        Screen.Vault.route,
-        Screen.SecureVault.route,
-        Screen.Settings.route
-      )
+      val topLevelRoutes = remember {
+        setOf(
+          Screen.Dashboard.route,
+          Screen.Vault.route,
+          Screen.SecureVault.route,
+          Screen.Settings.route
+        )
+      }
+
+      val showBottomBar = currentRoute in topLevelRoutes
+
+      var selectedTabRoute by rememberSaveable { mutableStateOf(startDestination) }
+
+      LaunchedEffect(currentRoute) {
+        if (currentRoute != null && currentRoute in topLevelRoutes) {
+          selectedTabRoute = currentRoute
+        }
+      }
 
       Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
           if (showBottomBar) {
             NavigationBar(
-              containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.surface,
+              containerColor = if (frostedGlassEnabled) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+              } else {
+                MaterialTheme.colorScheme.surface
+              },
               contentColor = MaterialTheme.colorScheme.onSurface,
               modifier = if (frostedGlassEnabled) {
                 Modifier.frostedGlassBottomBar(hazeState, enabled = true)
@@ -142,13 +162,14 @@ fun PaperTrailAppContent(
               }
             ) {
               bottomNavItems.forEach { (route, label, icon) ->
-                val isSelected = currentRoute == route
+                val isSelected = selectedTabRoute == route
                 NavigationBarItem(
                   icon = { Icon(icon, contentDescription = label) },
                   label = { Text(label) },
                   selected = isSelected,
                   onClick = {
-                    if (currentRoute != route) {
+                    if (selectedTabRoute != route) {
+                      selectedTabRoute = route
                       if (currentRoute == Screen.SecureVault.route) {
                         secureVaultViewModel.lockVault()
                       }
@@ -178,11 +199,35 @@ fun PaperTrailAppContent(
             modifier = Modifier.padding(
               bottom = bottomPadding
             ),
-        enterTransition = { androidx.compose.animation.fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn) },
-        exitTransition = { androidx.compose.animation.fadeOut(com.example.ui.theme.PaperTrailMotion.fadeOut) },
-        popEnterTransition = { androidx.compose.animation.fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn) },
-        popExitTransition = { androidx.compose.animation.fadeOut(com.example.ui.theme.PaperTrailMotion.fadeOut) }
-      ) {
+            enterTransition = {
+              if (initialState.destination.route in topLevelRoutes && targetState.destination.route in topLevelRoutes) {
+                EnterTransition.None
+              } else {
+                fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn)
+              }
+            },
+            exitTransition = {
+              if (initialState.destination.route in topLevelRoutes && targetState.destination.route in topLevelRoutes) {
+                ExitTransition.None
+              } else {
+                fadeOut(com.example.ui.theme.PaperTrailMotion.fadeOut)
+              }
+            },
+            popEnterTransition = {
+              if (initialState.destination.route in topLevelRoutes && targetState.destination.route in topLevelRoutes) {
+                EnterTransition.None
+              } else {
+                fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn)
+              }
+            },
+            popExitTransition = {
+              if (initialState.destination.route in topLevelRoutes && targetState.destination.route in topLevelRoutes) {
+                ExitTransition.None
+              } else {
+                fadeOut(com.example.ui.theme.PaperTrailMotion.fadeOut)
+              }
+            }
+          ) {
         composable(
           route = Screen.Tutorial.route,
           enterTransition = { androidx.compose.animation.slideInHorizontally(animationSpec = com.example.ui.theme.PaperTrailMotion.screenEnter()) { it } + androidx.compose.animation.fadeIn(com.example.ui.theme.PaperTrailMotion.fadeIn) },

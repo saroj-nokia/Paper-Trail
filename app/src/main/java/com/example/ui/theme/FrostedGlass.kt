@@ -25,9 +25,9 @@ val LocalHazeState = compositionLocalOf<HazeState?> { null }
 val LocalBottomBarPadding = compositionLocalOf { 0.dp }
 
 // Default dark theme glass tuning matching the app's palette
-val GlassTintAlpha = 0.72f
-val GlassBlurRadius = 20.dp
-val GlassHighlightColor = Color.White.copy(alpha = 0.08f)
+val GlassTintAlpha = 0.85f
+val GlassBlurRadius = 24.dp
+val GlassHighlightColor = Color.White.copy(alpha = 0.12f)
 
 @Composable
 fun frostedGlassStyle(
