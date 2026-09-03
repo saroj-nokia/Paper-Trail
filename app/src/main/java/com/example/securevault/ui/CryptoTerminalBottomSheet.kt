@@ -43,6 +43,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.LocalFrostedGlassEnabled
+import com.example.ui.theme.LocalHazeState
+import com.example.ui.theme.frostedGlassBottomBar
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.securevault.logging.CryptoLogEntry
@@ -65,13 +68,23 @@ fun CryptoTerminalBottomSheet(
 ) {
   val logs by CryptoLogger.logs.collectAsStateWithLifecycle()
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+  val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+  val hazeState = LocalHazeState.current
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
     sheetState = sheetState,
-    containerColor = TerminalDarkBg,
+    containerColor = if (frostedGlassEnabled) TerminalDarkBg.copy(alpha = 0.88f) else TerminalDarkBg,
     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-    modifier = Modifier.testTag("crypto_terminal_sheet")
+    modifier = Modifier
+      .testTag("crypto_terminal_sheet")
+      .then(
+        if (frostedGlassEnabled && hazeState != null) {
+          Modifier.frostedGlassBottomBar(hazeState, enabled = true, tintColor = TerminalDarkBg.copy(alpha = 0.88f))
+        } else {
+          Modifier
+        }
+      )
   ) {
     Column(
       modifier = Modifier

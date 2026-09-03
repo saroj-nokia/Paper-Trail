@@ -115,6 +115,10 @@ dependencies {
   // Performance / Baseline Profile installer
   implementation(libs.androidx.profileinstaller)
 
+  // Haze Frosted Glass Blur
+  implementation(libs.haze)
+  implementation(libs.haze.materials)
+
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

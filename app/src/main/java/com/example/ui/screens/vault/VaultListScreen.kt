@@ -67,6 +67,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.PerforatedReceiptCard
 import com.example.ui.theme.ForestPrimary
+import com.example.ui.theme.LocalFrostedGlassEnabled
+import com.example.ui.theme.LocalHazeState
+import com.example.ui.theme.frostedGlassSource
+import com.example.ui.theme.frostedGlassTopBar
 
 val CATEGORY_OPTIONS = listOf(
   "All",
@@ -94,6 +98,8 @@ fun VaultListScreen(
   val sortOption by viewModel.sortOption.collectAsStateWithLifecycle()
 
   var sortMenuExpanded by remember { mutableStateOf(false) }
+  val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+  val hazeState = LocalHazeState.current
 
   Scaffold(
     topBar = {
@@ -140,8 +146,13 @@ fun VaultListScreen(
           }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-          containerColor = MaterialTheme.colorScheme.background
-        )
+          containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.background
+        ),
+        modifier = if (frostedGlassEnabled) {
+          Modifier.frostedGlassTopBar(hazeState, enabled = true)
+        } else {
+          Modifier
+        }
       )
     },
     floatingActionButton = {
@@ -163,11 +174,18 @@ fun VaultListScreen(
     },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
+    val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
+    val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+
     Column(
       modifier = Modifier
         .fillMaxSize()
-        .padding(paddingValues)
+        .padding(top = topPadding)
+        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
     ) {
+      if (extraTopPadding > 0.dp) {
+        Spacer(modifier = Modifier.height(extraTopPadding))
+      }
       // 1. Search Bar
       OutlinedTextField(
         value = searchQuery,

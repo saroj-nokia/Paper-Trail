@@ -57,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -76,8 +77,13 @@ import com.example.ui.theme.AmberAlertOnContainer
 import com.example.ui.theme.ForestContainer
 import com.example.ui.theme.ForestOnContainer
 import com.example.ui.theme.ForestPrimary
+import com.example.ui.theme.LocalFrostedGlassEnabled
+import com.example.ui.theme.LocalHazeState
+import com.example.ui.theme.LocalSetFrostedGlassEnabled
 import com.example.ui.theme.MonospaceLedgerStyle
 import com.example.ui.theme.StampRed
+import com.example.ui.theme.frostedGlassSource
+import com.example.ui.theme.frostedGlassTopBar
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,6 +128,9 @@ fun SettingsScreen(
   }
 
   val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive || DatabasePassphraseManager.isFallbackMode
+  val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+  val setFrostedGlassEnabled = LocalSetFrostedGlassEnabled.current
+  val hazeState = LocalHazeState.current
 
   Scaffold(
     topBar = {
@@ -130,19 +139,34 @@ fun SettingsScreen(
           Text("Security & Privacy", fontWeight = FontWeight.Bold)
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-          containerColor = MaterialTheme.colorScheme.background
-        )
+          containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.background
+        ),
+        modifier = if (frostedGlassEnabled) {
+          Modifier.frostedGlassTopBar(hazeState, enabled = true)
+        } else {
+          Modifier
+        }
       )
     },
     snackbarHost = { SnackbarHost(snackbarHostState) },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
+    val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
+    val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+    val extraBottomPadding = if (frostedGlassEnabled) 80.dp else 0.dp
+
     Column(
       modifier = Modifier
         .fillMaxSize()
-        .padding(paddingValues)
+        .padding(top = topPadding)
+        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
         .verticalScroll(rememberScrollState())
-        .padding(16.dp),
+        .padding(
+          start = 16.dp,
+          end = 16.dp,
+          top = 16.dp + extraTopPadding,
+          bottom = 16.dp + extraBottomPadding
+        ),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
       // 0. Fallback Warning Banner if unencrypted storage fallback is active
@@ -354,7 +378,55 @@ fun SettingsScreen(
         }
       }
 
-      // 4. Tutorial & Walkthrough
+      // 4. Appearance Settings
+      Card(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(12.dp))
+          .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+          .testTag("appearance_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+      ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          Text(
+            text = "Appearance",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Frosted Glass Effect",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+              )
+              Text(
+                text = "Adds a blurred glass look to bars and sheets. Off by default — enable if you like the look; it uses a bit more GPU.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Switch(
+              checked = frostedGlassEnabled,
+              onCheckedChange = { isChecked ->
+                setFrostedGlassEnabled(isChecked)
+              },
+              modifier = Modifier.testTag("toggle_frosted_glass")
+            )
+          }
+        }
+      }
+
+      // 5. Tutorial & Walkthrough
       Card(
         onClick = onNavigateToTutorial,
         modifier = Modifier

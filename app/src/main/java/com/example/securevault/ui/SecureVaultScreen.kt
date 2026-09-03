@@ -128,6 +128,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.security.IntegrityReport
+import com.example.ui.theme.LocalFrostedGlassEnabled
+import com.example.ui.theme.LocalHazeState
+import com.example.ui.theme.frostedGlassSource
+import com.example.ui.theme.frostedGlassTopBar
 import com.example.data.security.SecurityAuditPreferences
 import com.example.data.security.SecurityIntegrityAuditor
 import com.example.securevault.data.VaultStorageLocation
@@ -304,6 +308,9 @@ fun SecureVaultScreen(
     )
   } else {
     // Unlocked SecureVault UI
+    val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+    val hazeState = LocalHazeState.current
+
     Scaffold(
       topBar = {
         TopAppBar(
@@ -365,8 +372,13 @@ fun SecureVaultScreen(
             }
           },
           colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface
-          )
+            containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.surface
+          ),
+          modifier = if (frostedGlassEnabled) {
+            Modifier.frostedGlassTopBar(hazeState, enabled = true)
+          } else {
+            Modifier
+          }
         )
       },
       floatingActionButton = {
@@ -384,11 +396,18 @@ fun SecureVaultScreen(
       snackbarHost = { SnackbarHost(snackbarHostState) },
       containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
+      val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
+      val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+
       Column(
         modifier = Modifier
           .fillMaxSize()
-          .padding(paddingValues)
+          .padding(top = topPadding)
+          .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
       ) {
+        if (extraTopPadding > 0.dp) {
+          Spacer(modifier = Modifier.height(extraTopPadding))
+        }
         // Security Status & Storage Mode Banner
         Box(
           modifier = Modifier

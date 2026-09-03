@@ -191,12 +191,12 @@ fun PerforatedReceiptCard(
       DashedDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
       // Badges footer row
-      FlowRow(
+      Row(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalAlignment = Alignment.CenterVertically
       ) {
         CategoryBadge(category = item.category)
 

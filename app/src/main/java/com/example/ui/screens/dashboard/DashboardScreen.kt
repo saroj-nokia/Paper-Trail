@@ -78,6 +78,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.example.ui.theme.LocalFrostedGlassEnabled
+import com.example.ui.theme.LocalHazeState
+import com.example.ui.theme.frostedGlassSource
+import com.example.ui.theme.frostedGlassTopBar
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.db.AppDatabase
 import com.example.data.db.DatabasePassphraseManager
@@ -148,6 +152,8 @@ fun DashboardScreen(
   }
 
   val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive || DatabasePassphraseManager.isFallbackMode
+  val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+  val hazeState = LocalHazeState.current
 
   val currencyFmt = NumberFormat.getCurrencyInstance(Locale.US)
   val monthlySubFormatted = currencyFmt.format(stats.monthlySubscriptionCost)
@@ -197,18 +203,33 @@ fun DashboardScreen(
           }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-          containerColor = MaterialTheme.colorScheme.background
-        )
+          containerColor = if (frostedGlassEnabled) Color.Transparent else MaterialTheme.colorScheme.background
+        ),
+        modifier = if (frostedGlassEnabled) {
+          Modifier.frostedGlassTopBar(hazeState, enabled = true)
+        } else {
+          Modifier
+        }
       )
     },
     snackbarHost = { SnackbarHost(snackbarHostState) },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
+    val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
+    val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
+    val extraBottomPadding = if (frostedGlassEnabled) 80.dp else 0.dp
+
     LazyColumn(
       modifier = Modifier
         .fillMaxSize()
-        .padding(paddingValues),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        .padding(top = topPadding)
+        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled),
+      contentPadding = PaddingValues(
+        start = 16.dp,
+        end = 16.dp,
+        top = 12.dp + extraTopPadding,
+        bottom = 12.dp + extraBottomPadding
+      ),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
       // 0a. Notification permission banner if on Android 13+ and not granted
