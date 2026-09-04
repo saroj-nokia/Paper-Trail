@@ -1,8 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/paper_trail_icon_1788160871560"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Receipt Drop Shadow -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.28"
+        android:pathData="M36,29.5 L72,29.5 A4,4 0 0 1 76,33.5 L76,77.5 L73.25,81 L70.5,77.5 L67.75,81 L65,77.5 L62.25,81 L59.5,77.5 L56.75,81 L54,77.5 L51.25,81 L48.5,77.5 L45.75,81 L43,77.5 L40.25,81 L37.5,77.5 L34.75,81 L32,77.5 L32,33.5 A4,4 0 0 1 36,29.5 Z" />
+
+    <!-- Receipt Paper Body (White) with Perforated Zigzag Bottom -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,28 L72,28 A4,4 0 0 1 76,32 L76,76 L73.25,79.5 L70.5,76 L67.75,79.5 L65,76 L62.25,79.5 L59.5,76 L56.75,79.5 L54,76 L51.25,79.5 L48.5,76 L45.75,79.5 L43,76 L40.25,79.5 L37.5,76 L34.75,79.5 L32,76 L32,32 A4,4 0 0 1 36,28 Z" />
+
+    <!-- Receipt Header Bar -->
+    <path
+        android:strokeColor="#1E293B"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M39,35.5 L69,35.5" />
+
+    <!-- Receipt Item Line 1 -->
+    <path
+        android:strokeColor="#64748B"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M39,42 L65,42" />
+
+    <!-- Receipt Item Line 2 -->
+    <path
+        android:strokeColor="#94A3B8"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M39,47.5 L57,47.5" />
+
+    <!-- Receipt Item Line 3 -->
+    <path
+        android:strokeColor="#94A3B8"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M39,53 L51,53" />
+
+    <!-- Receipt Dashed / Perforated Subdivider -->
+    <path
+        android:strokeColor="#CBD5E1"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M39,58.5 L48,58.5" />
+
+    <!-- Receipt Total Summary Bar -->
+    <path
+        android:strokeColor="#1E293B"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:pathData="M39,64 L49,64" />
+
+    <!-- Outer Shield Border / Gap (Separates Shield from Receipt) -->
+    <path
+        android:fillColor="#0B0F19"
+        android:pathData="M52.5,53.5 Q65,51 77.5,53.5 L77.5,65.5 Q77.5,74 65,78.5 Q52.5,74 52.5,65.5 Z" />
+
+    <!-- Inner Shield Body (App Security Amber) -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M55,55.5 Q65,53.5 75,55.5 L75,65 Q75,72 65,76 Q55,72 55,65 Z" />
+
+    <!-- Lock Shackle -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M62.5,63.5 V61.5 A2.5,2.5 0 0 1 67.5,61.5 V63.5" />
+
+    <!-- Lock Body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M61.5,63 H68.5 A1.2,1.2 0 0 1 69.7,64.2 V68.8 A1.2,1.2 0 0 1 68.5,70 H61.5 A1.2,1.2 0 0 1 60.3,68.8 V64.2 A1.2,1.2 0 0 1 61.5,63 Z" />
+
+    <!-- Lock Keyhole -->
+    <path
+        android:fillColor="#D97706"
+        android:pathData="M65,65 A0.9,0.9 0 0 1 65.7,66.3 L65.4,67.8 H64.6 L64.3,66.3 A0.9,0.9 0 0 1 65,65 Z" />
+
+</vector>

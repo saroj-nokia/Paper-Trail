@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Receipt Silhouette with Negative Space Cutouts for Lines and Shield Border -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="
+            M36,28 L72,28 A4,4 0 0 1 76,32 L76,76 L73.25,79.5 L70.5,76 L67.75,79.5 L65,76 L62.25,79.5 L59.5,76 L56.75,79.5 L54,76 L51.25,79.5 L48.5,76 L45.75,79.5 L43,76 L40.25,79.5 L37.5,76 L34.75,79.5 L32,76 L32,32 A4,4 0 0 1 36,28 Z
+            M39,34 H69 V37 H39 Z
+            M39,41 H65 V43.5 H39 Z
+            M39,46.5 H57 V49 H39 Z
+            M39,52 H51 V54.5 H39 Z
+            M39,62.5 H49 V65.5 H39 Z
+            M52.5,53.5 Q65,51 77.5,53.5 L77.5,65.5 Q77.5,74 65,78.5 Q52.5,74 52.5,65.5 Z" />
+
+    <!-- Shield Silhouette with Negative Space Cutout for Lock Silhouette -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="
+            M55,55.5 Q65,53.5 75,55.5 L75,65 Q75,72 65,76 Q55,72 55,65 Z
+            M62.5,63.5 V61.5 A2.5,2.5 0 0 1 67.5,61.5 V63.5 H68.5 A1.2,1.2 0 0 1 69.7,64.7 V68.8 A1.2,1.2 0 0 1 68.5,70 H61.5 A1.2,1.2 0 0 1 60.3,68.8 V64.7 A1.2,1.2 0 0 1 61.5,63.5 H62.5 Z
+            M64,63.5 V61.5 A1,1 0 0 1 66,61.5 V63.5 Z" />
+
+</vector>
