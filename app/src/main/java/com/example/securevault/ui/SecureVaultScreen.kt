@@ -50,7 +50,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -2291,7 +2291,7 @@ private fun getFileTypeIcon(mimeType: String): ImageVector {
     mimeType.contains("pdf") -> Icons.Default.PictureAsPdf
     mimeType.startsWith("text/") || mimeType.contains("document") -> Icons.Default.Description
     mimeType.contains("zip") || mimeType.contains("tar") || mimeType.contains("compressed") -> Icons.Default.FolderZip
-    else -> Icons.Default.InsertDriveFile
+    else -> Icons.AutoMirrored.Filled.InsertDriveFile
   }
 }
 

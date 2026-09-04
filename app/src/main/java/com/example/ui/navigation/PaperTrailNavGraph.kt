@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.EnhancedEncryption
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -120,7 +120,7 @@ fun PaperTrailAppContent(
     } else {
       val bottomNavItems = listOf(
         Triple(Screen.Dashboard.route, "Dashboard", Icons.Default.Dashboard),
-        Triple(Screen.Vault.route, "Ledger", Icons.Default.ReceiptLong),
+        Triple(Screen.Vault.route, "Ledger", Icons.AutoMirrored.Filled.ReceiptLong),
         Triple(Screen.SecureVault.route, "SecureVault", Icons.Default.EnhancedEncryption),
         Triple(Screen.Settings.route, "Security", Icons.Default.Shield)
       )

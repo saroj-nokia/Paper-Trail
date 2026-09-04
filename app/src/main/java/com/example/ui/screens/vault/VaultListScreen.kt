@@ -23,13 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,11 +41,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -119,7 +117,7 @@ fun VaultListScreen(
               modifier = Modifier.testTag("sort_button")
             ) {
               Icon(
-                imageVector = Icons.Default.Sort,
+                imageVector = Icons.AutoMirrored.Filled.Sort,
                 contentDescription = "Sort Options"
               )
             }
@@ -220,18 +218,10 @@ fun VaultListScreen(
       )
 
       // 2. Tab Navigation: All, Receipts, Warranties, Subscriptions
-      ScrollableTabRow(
+      PrimaryScrollableTabRow(
         selectedTabIndex = selectedTab.ordinal,
         edgePadding = 16.dp,
-        containerColor = MaterialTheme.colorScheme.background,
-        indicator = { tabPositions ->
-          if (selectedTab.ordinal < tabPositions.size) {
-            TabRowDefaults.SecondaryIndicator(
-              modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab.ordinal]),
-              color = MaterialTheme.colorScheme.primary
-            )
-          }
-        }
+        containerColor = MaterialTheme.colorScheme.background
       ) {
         VaultTab.values().forEach { tab ->
           Tab(
@@ -318,7 +308,7 @@ fun VaultListScreen(
               contentAlignment = Alignment.Center
             ) {
               Icon(
-                imageVector = Icons.Default.ReceiptLong,
+                imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(32.dp)

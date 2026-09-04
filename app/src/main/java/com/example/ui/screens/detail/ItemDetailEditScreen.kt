@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material3.AlertDialog
@@ -174,7 +173,7 @@ fun ItemDetailEditScreen(
           title = { Text("Item Detail") },
           navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-              Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+              Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
           }
         )
@@ -199,7 +198,7 @@ fun ItemDetailEditScreen(
         },
         navigationIcon = {
           IconButton(onClick = onNavigateBack) {
-            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
           }
         },
         actions = {
