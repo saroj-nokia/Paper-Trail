@@ -5,7 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -24,6 +26,7 @@ val LocalFrostedGlassEnabled = compositionLocalOf { false }
 val LocalSetFrostedGlassEnabled = staticCompositionLocalOf<(Boolean) -> Unit> { {} }
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
 val LocalBottomBarPadding = compositionLocalOf { 0.dp }
+val LocalForceHideBottomBar = compositionLocalOf { mutableStateOf(false) }
 
 // Default dark theme glass tuning matching the app's palette
 val GlassTintAlpha = 0.85f

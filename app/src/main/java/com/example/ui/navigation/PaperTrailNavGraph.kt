@@ -53,6 +53,7 @@ import com.example.ui.screens.settings.SettingsScreen
 import com.example.ui.screens.tutorial.TutorialScreen
 import com.example.ui.screens.vault.VaultListScreen
 import com.example.ui.theme.LocalBottomBarPadding
+import com.example.ui.theme.LocalForceHideBottomBar
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.LocalSetFrostedGlassEnabled
@@ -93,6 +94,7 @@ fun PaperTrailAppContent(
     mutableStateOf(AppearancePreferences.isFrostedGlassEnabled(context))
   }
   val hazeState = remember { HazeState() }
+  val forceHideBottomBar = remember { mutableStateOf(false) }
 
   CompositionLocalProvider(
     LocalFrostedGlassEnabled provides frostedGlassEnabled,
@@ -100,7 +102,8 @@ fun PaperTrailAppContent(
       AppearancePreferences.setFrostedGlassEnabled(context, enabled)
       frostedGlassEnabled = enabled
     },
-    LocalHazeState provides hazeState
+    LocalHazeState provides hazeState,
+    LocalForceHideBottomBar provides forceHideBottomBar
   ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -134,7 +137,7 @@ fun PaperTrailAppContent(
         )
       }
 
-      val showBottomBar = currentRoute in topLevelRoutes
+      val showBottomBar = currentRoute in topLevelRoutes && !forceHideBottomBar.value
 
       var selectedTabRoute by rememberSaveable { mutableStateOf(startDestination) }
 

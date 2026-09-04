@@ -91,6 +91,7 @@ import androidx.media3.ui.PlayerView
 import com.example.securevault.data.SecureVaultRepository
 import com.example.securevault.media.SecureVaultDecryptingDataSource
 import com.example.securevault.model.SecureFileItem
+import com.example.ui.theme.LocalForceHideBottomBar
 import com.example.ui.theme.PaperTrailMotion
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -137,6 +138,15 @@ fun SecureMediaPlayerScreen(
       setFullscreen(false)
     } else {
       onBack()
+    }
+  }
+
+  // Force-hide bottom navigation bar during the entire lifetime of media playback
+  val forceHideBottomBar = LocalForceHideBottomBar.current
+  DisposableEffect(Unit) {
+    forceHideBottomBar.value = true
+    onDispose {
+      forceHideBottomBar.value = false
     }
   }
 
