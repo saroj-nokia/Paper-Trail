@@ -45,11 +45,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.LocalFrostedGlassEnabled
 import com.example.ui.theme.LocalHazeState
 import com.example.ui.theme.frostedGlassBottomBar
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.remember
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import com.example.securevault.logging.CryptoLogEntry
 import com.example.securevault.logging.CryptoLogLevel
 import com.example.securevault.logging.CryptoLogger
@@ -71,47 +79,92 @@ fun CryptoTerminalBottomSheet(
   val logs by CryptoLogger.logs.collectAsStateWithLifecycle()
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
   val frostedGlassEnabled = LocalFrostedGlassEnabled.current
-  val hazeState = LocalHazeState.current
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
     sheetState = sheetState,
-    containerColor = if (frostedGlassEnabled) Color.Transparent else TerminalDarkBg,
+    containerColor = TerminalDarkBg,
     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-    modifier = Modifier
-      .testTag("crypto_terminal_sheet")
-      .then(
-        if (frostedGlassEnabled) {
-          Modifier
-            .background(
-              color = TerminalDarkBg.copy(alpha = 0.92f),
-              shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-            )
-            .drawWithContent {
-              drawContent()
-              val strokePx = 1.dp.toPx()
-              drawLine(
-                color = Color.White.copy(alpha = 0.08f),
-                start = Offset(0f, strokePx / 2),
-                end = Offset(size.width, strokePx / 2),
-                strokeWidth = strokePx
-              )
-            }
-        } else {
-          Modifier
-        }
-      )
+    modifier = Modifier.testTag("crypto_terminal_sheet")
   ) {
-    Column(
+    val terminalHazeState = remember { HazeState() }
+    
+    Box(
       modifier = Modifier
         .fillMaxWidth()
         .height(520.dp)
     ) {
+      // Terminal Log Area
+      val logAreaModifier = Modifier
+        .fillMaxSize()
+        .then(if (frostedGlassEnabled) Modifier.hazeSource(terminalHazeState) else Modifier)
+
+      if (logs.isEmpty()) {
+        Box(
+          modifier = logAreaModifier.padding(top = 64.dp, bottom = 32.dp, start = 32.dp, end = 32.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+              imageVector = Icons.Default.Terminal,
+              contentDescription = null,
+              tint = TerminalTextMuted.copy(alpha = 0.4f),
+              modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+              text = "No cryptographic events logged yet.",
+              fontFamily = FontFamily.Monospace,
+              fontSize = 12.sp,
+              color = TerminalTextMuted
+            )
+            Text(
+              text = "Import, export, or preview a file to watch real-time encryption telemetry.",
+              fontFamily = FontFamily.Monospace,
+              fontSize = 11.sp,
+              color = TerminalTextMuted.copy(alpha = 0.7f),
+              textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+          }
+        }
+      } else {
+        LazyColumn(
+          modifier = logAreaModifier,
+          contentPadding = PaddingValues(top = 72.dp, bottom = 8.dp, start = 12.dp, end = 12.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          items(logs, key = { it.id.toString() }) { logEntry ->
+            TerminalLogItem(logEntry)
+          }
+        }
+      }
+
       // Terminal Header
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .background(TerminalHeaderBg)
+          .align(Alignment.TopCenter)
+          .then(
+            if (frostedGlassEnabled) {
+              Modifier
+                .hazeEffect(
+                  state = terminalHazeState,
+                  style = HazeStyle(blurRadius = 20.dp, tints = listOf(HazeTint(TerminalDarkBg.copy(alpha = 0.75f))))
+                )
+                .drawWithContent {
+                  drawContent()
+                  val strokePx = 1.dp.toPx()
+                  drawLine(
+                    color = Color.White.copy(alpha = 0.08f),
+                    start = Offset(0f, size.height - strokePx / 2),
+                    end = Offset(size.width, size.height - strokePx / 2),
+                    strokeWidth = strokePx
+                  )
+                }
+            } else {
+              Modifier.background(TerminalHeaderBg)
+            }
+          )
           .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -178,50 +231,6 @@ fun CryptoTerminalBottomSheet(
               contentDescription = "Close Terminal",
               tint = Color.White
             )
-          }
-        }
-      }
-
-      // Terminal Log Area
-      if (logs.isEmpty()) {
-        Box(
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-          contentAlignment = Alignment.Center
-        ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-              imageVector = Icons.Default.Terminal,
-              contentDescription = null,
-              tint = TerminalTextMuted.copy(alpha = 0.4f),
-              modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-              text = "No cryptographic events logged yet.",
-              fontFamily = FontFamily.Monospace,
-              fontSize = 12.sp,
-              color = TerminalTextMuted
-            )
-            Text(
-              text = "Import, export, or preview a file to watch real-time encryption telemetry.",
-              fontFamily = FontFamily.Monospace,
-              fontSize = 11.sp,
-              color = TerminalTextMuted.copy(alpha = 0.7f),
-              textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-          }
-        }
-      } else {
-        LazyColumn(
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-          verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-          items(logs, key = { it.id }) { logEntry ->
-            TerminalLogItem(logEntry)
           }
         }
       }

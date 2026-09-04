@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,10 @@ val GlassTintAlpha = 0.85f
 val GlassBlurRadius = 24.dp
 val GlassHighlightColor = Color.White.copy(alpha = 0.12f)
 
+// Lighter, minimal tuning for main top/bottom bars
+val MinimalGlassBlurRadius = 8.dp
+val MinimalGlassTintAlpha = 0.55f
+
 @Composable
 fun frostedGlassStyle(
   tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = GlassTintAlpha),
@@ -48,8 +53,8 @@ fun frostedGlassStyle(
 fun Modifier.frostedGlassTopBar(
   hazeState: HazeState?,
   enabled: Boolean = LocalFrostedGlassEnabled.current,
-  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = GlassTintAlpha),
-  blurRadius: Dp = GlassBlurRadius
+  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = MinimalGlassTintAlpha),
+  blurRadius: Dp = MinimalGlassBlurRadius
 ): Modifier {
   if (!enabled || hazeState == null) return this
 
@@ -76,8 +81,8 @@ fun Modifier.frostedGlassTopBar(
 fun Modifier.frostedGlassBottomBar(
   hazeState: HazeState?,
   enabled: Boolean = LocalFrostedGlassEnabled.current,
-  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = GlassTintAlpha),
-  blurRadius: Dp = GlassBlurRadius
+  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = MinimalGlassTintAlpha),
+  blurRadius: Dp = MinimalGlassBlurRadius
 ): Modifier {
   if (!enabled || hazeState == null) return this
 
@@ -97,21 +102,21 @@ fun Modifier.frostedGlassBottomBar(
 }
 
 /**
- * Applies Haze blur effect and subtle border to floating dialogs and modal surfaces.
+ * Applies a translucent background and subtle border to floating dialogs and modal surfaces.
+ * (Cross-window Haze blur is not supported here).
  */
 @Composable
 fun Modifier.frostedGlassDialog(
-  hazeState: HazeState?,
+  hazeState: HazeState?, // Kept for API compatibility, but unused here
   shape: Shape = RoundedCornerShape(20.dp),
   enabled: Boolean = LocalFrostedGlassEnabled.current,
-  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = GlassTintAlpha),
-  blurRadius: Dp = GlassBlurRadius
+  tintColor: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), // Tint-only treatment
+  blurRadius: Dp = GlassBlurRadius // Unused
 ): Modifier {
-  if (!enabled || hazeState == null) return this
+  if (!enabled) return this
 
-  val style = HazeStyle(blurRadius = blurRadius, tints = listOf(HazeTint(tintColor)))
   return this
-    .hazeEffect(state = hazeState, style = style)
+    .background(tintColor, shape)
     .border(1.dp, GlassHighlightColor, shape)
 }
 
