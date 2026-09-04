@@ -37,6 +37,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -74,13 +76,27 @@ fun CryptoTerminalBottomSheet(
   ModalBottomSheet(
     onDismissRequest = onDismiss,
     sheetState = sheetState,
-    containerColor = if (frostedGlassEnabled) TerminalDarkBg.copy(alpha = 0.88f) else TerminalDarkBg,
+    containerColor = if (frostedGlassEnabled) Color.Transparent else TerminalDarkBg,
     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     modifier = Modifier
       .testTag("crypto_terminal_sheet")
       .then(
-        if (frostedGlassEnabled && hazeState != null) {
-          Modifier.frostedGlassBottomBar(hazeState, enabled = true, tintColor = TerminalDarkBg.copy(alpha = 0.88f))
+        if (frostedGlassEnabled) {
+          Modifier
+            .background(
+              color = TerminalDarkBg.copy(alpha = 0.92f),
+              shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            )
+            .drawWithContent {
+              drawContent()
+              val strokePx = 1.dp.toPx()
+              drawLine(
+                color = Color.White.copy(alpha = 0.08f),
+                start = Offset(0f, strokePx / 2),
+                end = Offset(size.width, strokePx / 2),
+                strokeWidth = strokePx
+              )
+            }
         } else {
           Modifier
         }
