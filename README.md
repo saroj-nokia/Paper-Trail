@@ -70,8 +70,7 @@ SecureVault is an architecturally separate subsystem designed to store, manage, 
    - Merchant Name
    - Transaction Date
    - Total Amount
-   - Item Category
-5. Set warranty terms or mark the entry as a recurring subscription if desired.
+5. Assign or adjust the category, set warranty terms, or mark the entry as a recurring subscription if desired.
 6. Tap **Save Entry**. The image and receipt record are encrypted and committed to the local SQLCipher database.
 
 ### Setting Up SecureVault
@@ -90,21 +89,25 @@ SecureVault is an architecturally separate subsystem designed to store, manage, 
 ```
 com.example
 ├── securevault/               # Cryptographically isolated vault module
-│   ├── crypto/                # Envelope encryption, Keystore & StrongBox managers
-│   ├── data/                  # SecureVault SQLCipher database & DAOs
+│   ├── data/                  # SQLCipher DB, DAOs, KeyManager (Keystore/envelope encryption)
+│   ├── logging/               # CryptoLogger & real-time cryptographic operation logging
 │   ├── media/                 # Custom ExoPlayer decrypting data source & stream decoders
 │   ├── model/                 # Secure file items & cryptographic state models
-│   └── ui/                    # SecureVault UI, Crypto Terminal, In-Memory Viewers
+│   ├── pdf/                   # In-memory PDF rendering via shared memory (memfd_create)
+│   ├── security/              # AuthManager, BiometricTracker, integrity gating
+│   ├── ui/                    # SecureVault UI, Crypto Terminal, In-Memory Viewers
+│   └── util/                  # Safe file movement and Storage Access Framework helpers
+├── data/                      # Core ledger database, OCR, notifications, security
+│   ├── db/                    # SQLCipher AppDatabase & Room DAOs
+│   ├── model/                 # Receipt, warranty, and subscription entities
+│   ├── notifications/         # WorkManager reminder schedulers
+│   ├── ocr/                   # Bundled ML Kit text recognition processor
+│   ├── repository/            # VaultRepository data access layer
+│   └── security/              # BiometricAuthManager & PassphraseManager
 ├── ui/
 │   ├── components/            # Reusable M3 Compose components & receipt styling
-│   ├── navigation/            # Navigation Compose graph & routes
-│   ├── screens/
-│   │   ├── auth/              # Biometric & PIN gate screens
-│   │   ├── dashboard/         # Aggregated metrics, charts, quick actions
-│   │   ├── detail/            # Receipt/warranty detail & edit screens
-│   │   ├── settings/          # App settings, theme & storage preferences
-│   │   ├── tutorial/          # Onboarding walkthrough
-│   │   └── vault/             # Ledger item listings & filtering
+│   ├── navigation/            # Navigation Compose graph & route definitions
+│   ├── screens/               # Auth, Capture, Dashboard, Detail, Settings, Tutorial, Vault
 │   └── theme/                 # M3 ColorScheme, Typography, Motion, FrostedGlass
 └── viewmodel/                 # MVVM StateFlow & coroutine view models
 ```
@@ -134,8 +137,8 @@ com.example
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/example/paper-trail.git
-   cd paper-trail
+   git clone https://github.com/saroj-nokia/Paper-Trail-.git
+   cd Paper-Trail-
    ```
 
 2. **Assemble Debug APK:**

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Core Ledger System**:
   - Receipt ingestion workflow supporting photo capture via system camera intent and existing gallery selection.
-  - On-device optical character recognition (OCR) using ML Kit's bundled model to extract vendor names, transaction dates, line items, and totals without network dependencies.
+  - On-device optical character recognition (OCR) using ML Kit's bundled model to extract vendor names, transaction dates, and total amounts without network dependencies.
   - Warranty tracking with automated notification triggers via AndroidX WorkManager prior to expiration.
   - Recurring subscription tracker calculating aggregate monthly expenses and firing renewal alerts.
   - Spending analytics dashboard featuring interactive category breakdowns and warranty status summaries.
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Opaque Storage Layout**: Stored vault items are renamed to random UUID tokens with extensions and headers stripped to prevent filesystem inspection or mime-type profiling.
 - **Master Recovery Credential**: PBKDF2-derived master password fallback with key-stretching and rate-limiting to maintain vault recoverability if hardware biometric keys are revoked.
 - **Platform Integrity Verification**: SecureVault enforces pre-flight validation of SELinux `Enforcing` status and active device storage encryption before granting access.
-- **Data Leak Prevention**: Explicitly disabled Android Auto Backup (`android:allowBackup="false"`) and cleared system cache targets after all cryptographic operations.
+- **Data Leak Prevention**: Explicitly disabled Android Auto Backup (`android:allowBackup="false"`) to prevent unencrypted cloud sync and device-to-device migration leaks.
 
 ### Changed
 - **Chrome-Free Video Playback**: Bound a composition-local flag (`LocalForceHideBottomBar`) to the media player lifecycle, completely hiding the bottom navigation bar and surrounding chrome throughout video playback.
@@ -49,6 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Large-File Encryption OOM**: Resolved Out-Of-Memory exceptions during multi-gigabyte video encryption by migrating to a streaming chunked cryptographic pipeline.
-- **Cold-Start Launch Latency**: Defer Keystore cryptographic verification and SQLCipher database initialization until first access, eliminating main-thread contention during app startup.
-- **Navigation Backstack Glitches**: Fixed backstack inconsistencies between the conditional SecureVault overlay and top-level navigation routes during predictive back gesture cancellation.
+- **Cold-Start Launch Latency**: Prewarm the SQLCipher database and Keystore passphrase initialization on a background thread (`Dispatchers.IO`) started early in `PaperTrailApp.onCreate()`, ensuring expensive cryptographic key setup is complete ahead of first UI access rather than blocking the main thread during `VaultViewModel` construction.
+- **Navigation Backstack Mismatches**: Resolved an issue where the Dashboard's "View All" button navigated using a bare `navController.navigate(...)` call while the bottom bar used `popUpTo/saveState/launchSingleTop/restoreState`, creating a mismatched back stack that caused destinations to appear stuck. Standardized all top-level transitions using a shared `navigateToTopLevelDestination()` extension helper.
 - **Dependency Alignment**: Aligned Jetpack Compose BOM, Media3, and Kotlin compiler plugin dependencies to resolve compiler warnings and bytecode version mismatches.
