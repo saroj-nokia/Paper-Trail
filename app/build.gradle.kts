@@ -21,18 +21,20 @@ android {
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH")
-      if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
-        storeFile = file(keystorePath)
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
-      } else {
-        storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      val keystoreFile = file(keystorePath)
+      val isReleaseRequested = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+      if (isReleaseRequested && !keystoreFile.exists()) {
+        throw GradleException(
+          "Release keystore not found at '$keystorePath'. Set the KEYSTORE_PATH environment " +
+          "variable to point at a valid release keystore, or place one at " +
+          "'${rootDir}/my-upload-key.jks'. Release builds must never fall back to the debug keystore."
+        )
       }
+      storeFile = keystoreFile
+      storePassword = System.getenv("STORE_PASSWORD")
+      keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+      keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
