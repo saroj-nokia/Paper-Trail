@@ -2,21 +2,13 @@ package com.example.securevault.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
 import android.util.Base64
 import android.util.Log
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.example.security.KeystoreCipherProvider
-import java.io.File
 import java.security.SecureRandom
 
 object SecureVaultPassphraseManager {
   private const val TAG = "SecureVaultPassphraseMgr"
-
-  // Legacy SharedPreferences configuration (for transparent one-time migration)
-  private const val LEGACY_PREFS_FILE = "securevault_encrypted_prefs"
-  private const val LEGACY_KEY_DB_PASSPHRASE = "securevault_db_encryption_key_v1"
 
   // Modern SharedPreferences configuration using KeystoreCipherProvider
   const val PREFS_FILE = "securevault_database_passphrase_prefs"
@@ -63,13 +55,7 @@ object SecureVaultPassphraseManager {
       }
     }
 
-    // 3. Migrate from legacy EncryptedSharedPreferences if present
-    val migratedPassphrase = tryMigrateFromLegacyPrefs(context)
-    if (migratedPassphrase != null) {
-      return storePassphrase(plainPrefs, fallbackPrefs, migratedPassphrase)
-    }
-
-    // 4. Generate new dedicated random 256-bit (32-byte) key for SecureVault database
+    // 3. Generate new dedicated random 256-bit (32-byte) key for SecureVault database
     val random = SecureRandom()
     val newKey = ByteArray(32)
     random.nextBytes(newKey)
@@ -94,73 +80,6 @@ object SecureVaultPassphraseManager {
       isFallbackMode = true
       fallbackPrefs.edit().putString(KEY_FALLBACK_PASSPHRASE, passphraseBase64).apply()
       Base64.decode(passphraseBase64, Base64.NO_WRAP)
-    }
-  }
-
-  @Suppress("DEPRECATION")
-  private fun tryMigrateFromLegacyPrefs(context: Context): String? {
-    val legacyPrefsFile = File(context.applicationInfo.dataDir, "shared_prefs/$LEGACY_PREFS_FILE.xml")
-    val legacyFallbackFile = File(context.applicationInfo.dataDir, "shared_prefs/${LEGACY_PREFS_FILE}_fallback.xml")
-
-    // Check legacy fallback file first
-    if (legacyFallbackFile.exists()) {
-      try {
-        val legacyFallbackPrefs = context.getSharedPreferences(LEGACY_PREFS_FILE + "_fallback", Context.MODE_PRIVATE)
-        val oldFallbackValue = legacyFallbackPrefs.getString(LEGACY_KEY_DB_PASSPHRASE, null)
-        if (oldFallbackValue != null) {
-          legacyFallbackPrefs.edit().clear().apply()
-          deleteSharedPrefsFile(context, LEGACY_PREFS_FILE + "_fallback", legacyFallbackFile)
-          Log.i(TAG, "Migrated legacy SecureVault fallback passphrase.")
-          return oldFallbackValue
-        }
-      } catch (e: Exception) {
-        Log.w(TAG, "Error checking legacy SecureVault fallback file: ${e.message}")
-      }
-    }
-
-    if (!legacyPrefsFile.exists()) {
-      return null
-    }
-
-    return try {
-      val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-      val oldEncryptedPrefs = EncryptedSharedPreferences.create(
-        context,
-        LEGACY_PREFS_FILE,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-      )
-
-      val legacyValue = oldEncryptedPrefs.getString(LEGACY_KEY_DB_PASSPHRASE, null)
-      if (legacyValue != null) {
-        oldEncryptedPrefs.edit().clear().apply()
-        deleteSharedPrefsFile(context, LEGACY_PREFS_FILE, legacyPrefsFile)
-        Log.i(TAG, "Successfully migrated SecureVault database passphrase from legacy EncryptedSharedPreferences.")
-        legacyValue
-      } else {
-        deleteSharedPrefsFile(context, LEGACY_PREFS_FILE, legacyPrefsFile)
-        null
-      }
-    } catch (e: Exception) {
-      Log.w(TAG, "Failed to read legacy SecureVault EncryptedSharedPreferences: ${e.message}")
-      null
-    }
-  }
-
-  private fun deleteSharedPrefsFile(context: Context, name: String, file: File) {
-    try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        context.deleteSharedPreferences(name)
-      } else {
-        file.delete()
-      }
-    } catch (e: Exception) {
-      Log.w(TAG, "Failed to delete legacy shared preferences '$name': ${e.message}")
-      file.delete()
     }
   }
 }

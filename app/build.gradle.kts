@@ -97,10 +97,9 @@ dependencies {
   implementation(libs.androidx.room.runtime)
   "ksp"(libs.androidx.room.compiler)
 
-  // Security: SQLCipher & Jetpack Crypto
+  // Security: SQLCipher & Biometric
   implementation(libs.sqlcipher.android)
   implementation(libs.androidx.sqlite)
-  implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.biometric)
 
   // On-Device ML Kit Text Recognition (OCR)

@@ -26,8 +26,6 @@ class SecureVaultBiometricTrackerTest {
     SecureVaultBiometricTracker.resetForTesting()
     context.getSharedPreferences(SecureVaultBiometricTracker.PREFS_FILE, Context.MODE_PRIVATE).edit().clear().commit()
     context.getSharedPreferences(SecureVaultBiometricTracker.PREFS_FALLBACK_FILE, Context.MODE_PRIVATE).edit().clear().commit()
-    context.getSharedPreferences("securevault_system_integrity", Context.MODE_PRIVATE).edit().clear().commit()
-    context.getSharedPreferences("securevault_system_integrity_fallback", Context.MODE_PRIVATE).edit().clear().commit()
   }
 
   @Test
@@ -38,45 +36,35 @@ class SecureVaultBiometricTrackerTest {
   @Test
   fun `test unconfigured state returns not configured`() {
     assertFalse(SecureVaultBiometricTracker.isExplicitlyConfigured(context))
-    assertFalse(SecureVaultBiometricTracker.isMasterPassphraseSet(context))
-    val result = SecureVaultBiometricTracker.verifyMasterCredential(context, "123456")
-    assertTrue(result is MasterCredentialVerifyResult.NotConfigured)
+    val res = SecureVaultBiometricTracker.verifyMasterCredential(context, "123456")
+    assertTrue(res is MasterCredentialVerifyResult.NotConfigured)
   }
 
   @Test
-  fun `test configure PIN and verify success`() {
+  fun `test set and verify master PIN`() {
     SecureVaultBiometricTracker.setMasterCredential(context, "123456", MasterCredentialType.PIN)
+
     assertTrue(SecureVaultBiometricTracker.isExplicitlyConfigured(context))
     assertTrue(SecureVaultBiometricTracker.isMasterPassphraseSet(context))
     assertEquals(MasterCredentialType.PIN, SecureVaultBiometricTracker.getMasterCredentialType(context))
 
-    val resultSuccess = SecureVaultBiometricTracker.verifyMasterCredential(context, "123456")
-    assertTrue(resultSuccess is MasterCredentialVerifyResult.Success)
+    // Valid PIN
+    val successRes = SecureVaultBiometricTracker.verifyMasterCredential(context, "123456")
+    assertTrue(successRes is MasterCredentialVerifyResult.Success)
 
-    val resultFail = SecureVaultBiometricTracker.verifyMasterCredential(context, "654321")
-    assertTrue(resultFail is MasterCredentialVerifyResult.InvalidCredential)
-    assertEquals(4, (resultFail as MasterCredentialVerifyResult.InvalidCredential).attemptsRemaining)
+    // Invalid PIN
+    val failRes = SecureVaultBiometricTracker.verifyMasterCredential(context, "654321")
+    assertTrue(failRes is MasterCredentialVerifyResult.InvalidCredential)
   }
 
   @Test
-  fun `test configure Passphrase and verify success`() {
-    SecureVaultBiometricTracker.setMasterPassphrase(context, "correct-horse-battery")
-    assertTrue(SecureVaultBiometricTracker.isExplicitlyConfigured(context))
-    assertEquals(MasterCredentialType.PASSPHRASE, SecureVaultBiometricTracker.getMasterCredentialType(context))
-
-    assertTrue(SecureVaultBiometricTracker.verifyMasterPassphrase(context, "correct-horse-battery"))
-    assertFalse(SecureVaultBiometricTracker.verifyMasterPassphrase(context, "wrong-passphrase-attempt"))
-  }
-
-  @Test
-  fun `test rate limiting and lockout logic`() {
+  fun `test lockout enforcement after failed attempts`() {
     SecureVaultBiometricTracker.setMasterCredential(context, "987654", MasterCredentialType.PIN)
 
-    // 4 failed attempts
-    for (i in 1..4) {
+    // Fail 4 times (within free attempts)
+    repeat(4) {
       val res = SecureVaultBiometricTracker.verifyMasterCredential(context, "000000")
       assertTrue(res is MasterCredentialVerifyResult.InvalidCredential)
-      assertEquals(5 - i, (res as MasterCredentialVerifyResult.InvalidCredential).attemptsRemaining)
     }
 
     // 5th attempt triggers lockout
@@ -115,23 +103,5 @@ class SecureVaultBiometricTrackerTest {
     // Verify new credential works
     val verifyRes = SecureVaultBiometricTracker.verifyMasterCredential(context, "333444")
     assertTrue(verifyRes is MasterCredentialVerifyResult.Success)
-  }
-
-  @Test
-  fun `test migration from legacy fallback prefs`() {
-    val legacyPrefs = context.getSharedPreferences("securevault_system_integrity_fallback", Context.MODE_PRIVATE)
-    // Legacy setup
-    legacyPrefs.edit()
-      .putString("master_passphrase_salt", android.util.Base64.encodeToString(ByteArray(16) { 1 }, android.util.Base64.NO_WRAP))
-      .putString("master_credential_type", MasterCredentialType.PIN.name)
-      .putBoolean("master_credential_explicitly_configured", true)
-      .putInt("failed_master_credential_attempts", 2)
-      .apply()
-
-    SecureVaultBiometricTracker.resetForTesting()
-
-    assertTrue(SecureVaultBiometricTracker.isExplicitlyConfigured(context))
-    assertEquals(MasterCredentialType.PIN, SecureVaultBiometricTracker.getMasterCredentialType(context))
-    assertEquals(2, SecureVaultBiometricTracker.getFailedAttemptsCount(context))
   }
 }

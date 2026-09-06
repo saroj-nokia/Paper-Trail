@@ -6,12 +6,9 @@ import android.os.Build
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.VisibleForTesting
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.example.BuildConfig
 import com.example.security.KeystoreCipherProvider
 import com.example.securevault.logging.CryptoLogger
-import java.io.File
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
@@ -62,10 +59,6 @@ object SecureVaultBiometricTracker {
   const val PREFS_FILE = "securevault_system_integrity_prefs"
   const val PREFS_FALLBACK_FILE = "securevault_system_integrity_fallback_prefs"
 
-  // Legacy SharedPreferences file names (for transparent one-time migration)
-  private const val LEGACY_PREFS_NAME = "securevault_system_integrity"
-  private const val LEGACY_FALLBACK_NAME = "securevault_system_integrity_fallback"
-
   // Plain metadata keys
   private const val KEY_LAST_APP_VERSION = "last_app_version_code"
   private const val KEY_LAST_OS_SDK = "last_os_sdk_int"
@@ -79,48 +72,24 @@ object SecureVaultBiometricTracker {
   private const val KEY_ENCRYPTED_FAILED_ATTEMPTS = "enc_failed_master_credential_attempts"
   private const val KEY_ENCRYPTED_LOCKOUT_UNTIL_EPOCH_MS = "enc_master_credential_lockout_until_ms"
 
-  // Legacy keys inside old EncryptedSharedPreferences
-  private const val LEGACY_KEY_PASSPHRASE_HASH = "master_passphrase_hash"
-  private const val LEGACY_KEY_PASSPHRASE_SALT = "master_passphrase_salt"
-  private const val LEGACY_KEY_FAILED_ATTEMPTS = "failed_master_credential_attempts"
-  private const val LEGACY_KEY_LOCKOUT_UNTIL_EPOCH_MS = "master_credential_lockout_until_ms"
-
   private const val MAX_FREE_ATTEMPTS = 5
   private const val BASE_LOCKOUT_SECONDS = 30L
 
   @Volatile
   private var cachedPrefs: SharedPreferences? = null
 
-  @Volatile
-  private var isMigrated = false
-
   @VisibleForTesting
   internal fun resetForTesting() {
     cachedPrefs = null
-    isMigrated = false
   }
 
   private fun getPrefs(context: Context): SharedPreferences {
     val appContext = context.applicationContext
-    cachedPrefs?.let { prefs ->
-      if (!isMigrated) {
-        synchronized(this) {
-          if (!isMigrated) {
-            checkAndPerformMigration(appContext, prefs)
-            isMigrated = true
-          }
-        }
-      }
-      return prefs
-    }
+    cachedPrefs?.let { return it }
 
     synchronized(this) {
       cachedPrefs?.let { return it }
       val plainPrefs = appContext.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
-      if (!isMigrated) {
-        checkAndPerformMigration(appContext, plainPrefs)
-        isMigrated = true
-      }
       cachedPrefs = plainPrefs
       return plainPrefs
     }
@@ -170,107 +139,6 @@ object SecureVaultBiometricTracker {
     }
     plainEditor.apply()
     fallbackEditor.apply()
-  }
-
-  @Suppress("DEPRECATION")
-  private fun checkAndPerformMigration(context: Context, plainPrefs: SharedPreferences) {
-    val legacyPrefsFile = File(context.applicationInfo.dataDir, "shared_prefs/$LEGACY_PREFS_NAME.xml")
-    val legacyFallbackFile = File(context.applicationInfo.dataDir, "shared_prefs/$LEGACY_FALLBACK_NAME.xml")
-
-    // Check legacy fallback file
-    if (legacyFallbackFile.exists()) {
-      try {
-        val legacyFallbackPrefs = context.getSharedPreferences(LEGACY_FALLBACK_NAME, Context.MODE_PRIVATE)
-        val oldSalt = legacyFallbackPrefs.getString(LEGACY_KEY_PASSPHRASE_SALT, null)
-        val oldHash = legacyFallbackPrefs.getString(LEGACY_KEY_PASSPHRASE_HASH, null)
-        val oldCredType = legacyFallbackPrefs.getString(KEY_CREDENTIAL_TYPE, null)
-        val oldConfigured = legacyFallbackPrefs.getBoolean(KEY_EXPLICITLY_CONFIGURED, false)
-        val oldFailedAttempts = legacyFallbackPrefs.getInt(LEGACY_KEY_FAILED_ATTEMPTS, 0)
-        val oldLockoutUntil = legacyFallbackPrefs.getLong(LEGACY_KEY_LOCKOUT_UNTIL_EPOCH_MS, 0L)
-        val oldAppVersion = legacyFallbackPrefs.getInt(KEY_LAST_APP_VERSION, -1)
-        val oldOsSdk = legacyFallbackPrefs.getInt(KEY_LAST_OS_SDK, -1)
-        val oldOsIncremental = legacyFallbackPrefs.getString(KEY_LAST_OS_INCREMENTAL, null)
-
-        val editor = plainPrefs.edit()
-        if (oldCredType != null) editor.putString(KEY_CREDENTIAL_TYPE, oldCredType)
-        if (oldConfigured) editor.putBoolean(KEY_EXPLICITLY_CONFIGURED, true)
-        if (oldAppVersion != -1) editor.putInt(KEY_LAST_APP_VERSION, oldAppVersion)
-        if (oldOsSdk != -1) editor.putInt(KEY_LAST_OS_SDK, oldOsSdk)
-        if (oldOsIncremental != null) editor.putString(KEY_LAST_OS_INCREMENTAL, oldOsIncremental)
-        editor.apply()
-
-        if (oldSalt != null) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_PASSPHRASE_SALT, oldSalt)
-        if (oldHash != null) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_PASSPHRASE_HASH, oldHash)
-        if (oldFailedAttempts > 0) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_FAILED_ATTEMPTS, oldFailedAttempts.toString())
-        if (oldLockoutUntil > 0L) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_LOCKOUT_UNTIL_EPOCH_MS, oldLockoutUntil.toString())
-
-        legacyFallbackPrefs.edit().clear().apply()
-        deleteSharedPrefsFile(context, LEGACY_FALLBACK_NAME, legacyFallbackFile)
-        Log.i(TAG, "Migrated legacy fallback biometric credentials.")
-      } catch (e: Exception) {
-        Log.w(TAG, "Failed migrating legacy fallback biometric credentials: ${e.message}")
-      }
-    }
-
-    if (!legacyPrefsFile.exists()) {
-      return
-    }
-
-    try {
-      val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-      val oldEncryptedPrefs = EncryptedSharedPreferences.create(
-        context,
-        LEGACY_PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-      )
-
-      val oldSalt = oldEncryptedPrefs.getString(LEGACY_KEY_PASSPHRASE_SALT, null)
-      val oldHash = oldEncryptedPrefs.getString(LEGACY_KEY_PASSPHRASE_HASH, null)
-      val oldCredType = oldEncryptedPrefs.getString(KEY_CREDENTIAL_TYPE, null)
-      val oldConfigured = oldEncryptedPrefs.getBoolean(KEY_EXPLICITLY_CONFIGURED, false)
-      val oldFailedAttempts = oldEncryptedPrefs.getInt(LEGACY_KEY_FAILED_ATTEMPTS, 0)
-      val oldLockoutUntil = oldEncryptedPrefs.getLong(LEGACY_KEY_LOCKOUT_UNTIL_EPOCH_MS, 0L)
-      val oldAppVersion = oldEncryptedPrefs.getInt(KEY_LAST_APP_VERSION, -1)
-      val oldOsSdk = oldEncryptedPrefs.getInt(KEY_LAST_OS_SDK, -1)
-      val oldOsIncremental = oldEncryptedPrefs.getString(KEY_LAST_OS_INCREMENTAL, null)
-
-      val editor = plainPrefs.edit()
-      if (oldCredType != null) editor.putString(KEY_CREDENTIAL_TYPE, oldCredType)
-      if (oldConfigured) editor.putBoolean(KEY_EXPLICITLY_CONFIGURED, true)
-      if (oldAppVersion != -1) editor.putInt(KEY_LAST_APP_VERSION, oldAppVersion)
-      if (oldOsSdk != -1) editor.putInt(KEY_LAST_OS_SDK, oldOsSdk)
-      if (oldOsIncremental != null) editor.putString(KEY_LAST_OS_INCREMENTAL, oldOsIncremental)
-      editor.apply()
-
-      if (oldSalt != null) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_PASSPHRASE_SALT, oldSalt)
-      if (oldHash != null) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_PASSPHRASE_HASH, oldHash)
-      if (oldFailedAttempts > 0) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_FAILED_ATTEMPTS, oldFailedAttempts.toString())
-      if (oldLockoutUntil > 0L) putEncryptedString(context, plainPrefs, KEY_ENCRYPTED_LOCKOUT_UNTIL_EPOCH_MS, oldLockoutUntil.toString())
-
-      oldEncryptedPrefs.edit().clear().apply()
-      deleteSharedPrefsFile(context, LEGACY_PREFS_NAME, legacyPrefsFile)
-      Log.i(TAG, "Successfully migrated credentials and lockout state from legacy EncryptedSharedPreferences.")
-    } catch (e: Exception) {
-      Log.w(TAG, "Legacy EncryptedSharedPreferences migration failed: ${e.message}")
-    }
-  }
-
-  private fun deleteSharedPrefsFile(context: Context, name: String, file: File) {
-    try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        context.deleteSharedPreferences(name)
-      } else {
-        file.delete()
-      }
-    } catch (e: Exception) {
-      Log.w(TAG, "Failed to delete legacy shared preferences '$name': ${e.message}")
-      file.delete()
-    }
   }
 
   fun isExplicitlyConfigured(context: Context): Boolean {

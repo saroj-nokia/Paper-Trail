@@ -7,7 +7,6 @@ import com.example.data.db.DatabasePassphraseManager
 import com.example.securevault.data.SecureVaultPassphraseManager
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -28,8 +27,6 @@ class SecureVaultPassphraseManagerTest {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FILE)
       context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FALLBACK_FILE)
-      context.deleteSharedPreferences("securevault_encrypted_prefs")
-      context.deleteSharedPreferences("securevault_encrypted_prefs_fallback")
     }
   }
 
@@ -53,20 +50,17 @@ class SecureVaultPassphraseManagerTest {
   }
 
   @Test
-  fun `test transparent migration from legacy fallback preferences`() {
+  fun `test fallback plaintext upgrade to KeystoreCipherProvider`() {
     val expectedBytes = ByteArray(32) { (it * 5).toByte() }
     val samplePassphraseBase64 = android.util.Base64.encodeToString(expectedBytes, android.util.Base64.NO_WRAP)
 
-    val legacyPrefs = context.getSharedPreferences("securevault_encrypted_prefs_fallback", Context.MODE_PRIVATE)
-    legacyPrefs.edit().putString("securevault_db_encryption_key_v1", samplePassphraseBase64).commit()
+    val fallbackPrefs = context.getSharedPreferences(SecureVaultPassphraseManager.PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
+    fallbackPrefs.edit().putString("securevault_db_encryption_key_v1", samplePassphraseBase64).commit()
 
-    val migrated = SecureVaultPassphraseManager.getOrCreatePassphrase(context)
-    assertArrayEquals(expectedBytes, migrated)
+    val key = SecureVaultPassphraseManager.getOrCreatePassphrase(context)
+    assertArrayEquals(expectedBytes, key)
 
     val subsequent = SecureVaultPassphraseManager.getOrCreatePassphrase(context)
     assertArrayEquals(expectedBytes, subsequent)
-
-    val legacyCheck = context.getSharedPreferences("securevault_encrypted_prefs_fallback", Context.MODE_PRIVATE)
-    assertEquals(null, legacyCheck.getString("securevault_db_encryption_key_v1", null))
   }
 }

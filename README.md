@@ -28,7 +28,7 @@
 - **Warranty Health Tracker**: Tracks purchase dates and warranty duration with background notifications via Android WorkManager prior to expiration.
 - **Subscription Monitor**: Tracks billing intervals, renewal dates, and automatically calculates aggregate monthly/annualized commitments.
 - **Financial Analytics**: High-performance, client-side spend breakdown visualizer organized by category and payment method.
-- **Encrypted Local Database**: The ledger database is encrypted with SQLCipher via 256-bit AES. Database passphrases are stored in `EncryptedSharedPreferences` backed by the Android Keystore.
+- **Encrypted Local Database**: The ledger database is encrypted with SQLCipher via 256-bit AES. Database passphrases are encrypted with `KeystoreCipherProvider` backed by the Android Keystore.
 - **Interactive Onboarding**: A 4-page introductory guide explaining the architecture, replayable at any time from Settings.
 - **Global App Lock**: Biometric (fingerprint/face) or device PIN lock gates the entire application.
 
