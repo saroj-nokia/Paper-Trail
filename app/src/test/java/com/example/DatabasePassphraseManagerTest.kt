@@ -24,7 +24,6 @@ class DatabasePassphraseManagerTest {
     context = ApplicationProvider.getApplicationContext()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       context.deleteSharedPreferences(DatabasePassphraseManager.PREFS_FILE)
-      context.deleteSharedPreferences(DatabasePassphraseManager.PREFS_FALLBACK_FILE)
     }
   }
 
@@ -36,23 +35,5 @@ class DatabasePassphraseManagerTest {
 
     val key2 = DatabasePassphraseManager.getOrCreatePassphrase(context)
     assertArrayEquals(key1, key2)
-  }
-
-  @Test
-  fun `test fallback plaintext upgrade to KeystoreCipherProvider`() {
-    val expectedBytes = ByteArray(32) { (it * 3).toByte() }
-    val samplePassphraseBase64 = android.util.Base64.encodeToString(expectedBytes, android.util.Base64.NO_WRAP)
-
-    // Pre-populate modern fallback file
-    val fallbackPrefs = context.getSharedPreferences(DatabasePassphraseManager.PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
-    fallbackPrefs.edit().putString("vault_db_encryption_key_v1", samplePassphraseBase64).commit()
-
-    // Call getOrCreatePassphrase - should upgrade to Keystore
-    val key = DatabasePassphraseManager.getOrCreatePassphrase(context)
-    assertArrayEquals(expectedBytes, key)
-
-    // Verify subsequent call retrieves identical key
-    val subsequent = DatabasePassphraseManager.getOrCreatePassphrase(context)
-    assertArrayEquals(expectedBytes, subsequent)
   }
 }

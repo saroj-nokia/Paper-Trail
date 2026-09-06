@@ -6,6 +6,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.model.VaultItem
+import com.example.security.KeystoreSecurityState
+import com.example.security.KeystoreUnavailableException
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
@@ -44,6 +46,13 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    @androidx.annotation.VisibleForTesting
+    fun resetForTesting() {
+      synchronized(this) {
+        INSTANCE = null
+      }
+    }
+
     /**
      * Builds the database instance.
      *
@@ -72,6 +81,10 @@ abstract class AppDatabase : RoomDatabase() {
           isEncryptionFallbackActive = false
           Log.i(TAG, "SQLCipher encrypted database successfully initialized and verified.")
           return encryptedDb
+        } catch (e: KeystoreUnavailableException) {
+          Log.e(TAG, "Hardware Keystore failure while retrieving database passphrase.", e)
+          KeystoreSecurityState.recordFailure(e)
+          throw e
         } catch (e: Throwable) {
           Log.e(TAG, "SQLCipher encrypted database initialization failed: ${e.message}. Falling back to standard plaintext Room database.", e)
           isEncryptionFallbackActive = true

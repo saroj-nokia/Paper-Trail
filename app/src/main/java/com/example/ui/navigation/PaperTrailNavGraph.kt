@@ -43,9 +43,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.data.AppearancePreferences
 import com.example.data.TutorialPreferences
+import com.example.PaperTrailApp
+import com.example.security.KeystoreSecurityState
 import com.example.securevault.ui.SecureVaultScreen
 import com.example.securevault.ui.SecureVaultViewModel
 import com.example.ui.screens.auth.BiometricLockScreen
+import com.example.ui.screens.auth.KeystoreUnavailableScreen
 import com.example.ui.screens.capture.CaptureOcrScreen
 import com.example.ui.screens.dashboard.DashboardScreen
 import com.example.ui.screens.detail.ItemDetailEditScreen
@@ -114,8 +117,19 @@ fun PaperTrailAppContent(
     }
 
     val isUnlocked by viewModel.authManager.isUnlocked.collectAsStateWithLifecycle()
+    val keystoreFailure by KeystoreSecurityState.keystoreFailure.collectAsStateWithLifecycle()
 
-    if (!isUnlocked && viewModel.authManager.isLockConfigured) {
+    if (keystoreFailure != null) {
+      KeystoreUnavailableScreen(
+        title = "Hardware Security Unavailable",
+        message = "This device's hardware security module isn't functioning correctly. Paper Trail cannot securely store your data here and will not continue without it.",
+        detailMessage = keystoreFailure?.message,
+        onRetry = {
+          val app = context.applicationContext as? PaperTrailApp
+          app?.retryPrewarm()
+        }
+      )
+    } else if (!isUnlocked && viewModel.authManager.isLockConfigured) {
       BiometricLockScreen(
         authManager = viewModel.authManager,
         onUnlocked = { /* unlocked state updated in StateFlow */ }

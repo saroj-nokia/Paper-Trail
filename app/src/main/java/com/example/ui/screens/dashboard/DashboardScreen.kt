@@ -85,7 +85,6 @@ import com.example.ui.theme.frostedGlassSource
 import com.example.ui.theme.frostedGlassTopBar
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.db.AppDatabase
-import com.example.data.db.DatabasePassphraseManager
 import com.example.data.model.VaultItem
 import com.example.ui.components.CategoryDonutChart
 import com.example.ui.components.DashedDivider
@@ -152,7 +151,7 @@ fun DashboardScreen(
     }
   }
 
-  val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive || DatabasePassphraseManager.isFallbackMode
+  val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive
   val frostedGlassEnabled = LocalFrostedGlassEnabled.current
   val hazeState = LocalHazeState.current
 

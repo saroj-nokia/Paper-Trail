@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.example.BuildConfig
 import com.example.security.KeystoreCipherProvider
+import com.example.security.KeystoreUnavailableException
 import com.example.securevault.logging.CryptoLogger
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -55,9 +56,8 @@ object SecureVaultBiometricTracker {
   // Distinct hardware Keystore alias dedicated exclusively to credential integrity
   const val KEYSTORE_KEY_ALIAS = "securevault_credential_key"
 
-  // Modern SharedPreferences file names
+  // Modern SharedPreferences file name
   const val PREFS_FILE = "securevault_system_integrity_prefs"
-  const val PREFS_FALLBACK_FILE = "securevault_system_integrity_fallback_prefs"
 
   // Plain metadata keys
   private const val KEY_LAST_APP_VERSION = "last_app_version_code"
@@ -100,45 +100,33 @@ object SecureVaultBiometricTracker {
       val encrypted = KeystoreCipherProvider.encryptString(KEYSTORE_KEY_ALIAS, value)
       plainPrefs.edit().putString(key, encrypted).apply()
     } catch (e: Exception) {
-      Log.w(TAG, "KeystoreCipherProvider encryption failed for key '$key': ${e.message}. Using fallback prefs.")
-      val fallbackPrefs = context.getSharedPreferences(PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
-      fallbackPrefs.edit().putString(key, value).apply()
+      Log.e(TAG, "KeystoreCipherProvider encryption failed for key '$key': ${e.message}", e)
+      throw KeystoreUnavailableException(
+        "Failed to encrypt credential state: hardware security module unavailable or malfunctioning.",
+        e
+      )
     }
   }
 
   private fun getEncryptedString(context: Context, plainPrefs: SharedPreferences, key: String): String? {
-    val encrypted = plainPrefs.getString(key, null)
-    if (encrypted != null) {
-      try {
-        return KeystoreCipherProvider.decryptString(KEYSTORE_KEY_ALIAS, encrypted)
-      } catch (e: Exception) {
-        Log.w(TAG, "KeystoreCipherProvider decryption failed for key '$key': ${e.message}. Checking fallback.")
-      }
+    val encrypted = plainPrefs.getString(key, null) ?: return null
+    try {
+      return KeystoreCipherProvider.decryptString(KEYSTORE_KEY_ALIAS, encrypted)
+    } catch (e: Exception) {
+      Log.e(TAG, "KeystoreCipherProvider decryption failed for key '$key': ${e.message}", e)
+      throw KeystoreUnavailableException(
+        "Failed to decrypt credential state: hardware security module unavailable or malfunctioning.",
+        e
+      )
     }
-    val fallbackPrefs = context.getSharedPreferences(PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
-    val fallbackValue = fallbackPrefs.getString(key, null)
-    if (fallbackValue != null) {
-      // Attempt opportunistic upgrade to Keystore
-      try {
-        val reencrypted = KeystoreCipherProvider.encryptString(KEYSTORE_KEY_ALIAS, fallbackValue)
-        plainPrefs.edit().putString(key, reencrypted).apply()
-        fallbackPrefs.edit().remove(key).apply()
-      } catch (_: Exception) {}
-      return fallbackValue
-    }
-    return null
   }
 
   private fun removeEncryptedKeys(context: Context, plainPrefs: SharedPreferences, vararg keys: String) {
     val plainEditor = plainPrefs.edit()
-    val fallbackPrefs = context.getSharedPreferences(PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
-    val fallbackEditor = fallbackPrefs.edit()
     for (key in keys) {
       plainEditor.remove(key)
-      fallbackEditor.remove(key)
     }
     plainEditor.apply()
-    fallbackEditor.apply()
   }
 
   fun isExplicitlyConfigured(context: Context): Boolean {

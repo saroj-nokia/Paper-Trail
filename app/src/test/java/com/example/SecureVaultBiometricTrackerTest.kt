@@ -25,7 +25,6 @@ class SecureVaultBiometricTrackerTest {
     context = ApplicationProvider.getApplicationContext()
     SecureVaultBiometricTracker.resetForTesting()
     context.getSharedPreferences(SecureVaultBiometricTracker.PREFS_FILE, Context.MODE_PRIVATE).edit().clear().commit()
-    context.getSharedPreferences(SecureVaultBiometricTracker.PREFS_FALLBACK_FILE, Context.MODE_PRIVATE).edit().clear().commit()
   }
 
   @Test

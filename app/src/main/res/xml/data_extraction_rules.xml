@@ -10,11 +10,8 @@
 
         <!-- Exclude SharedPreferences storing Keystore-encrypted database passphrases and biometric credentials -->
         <exclude domain="sharedpref" path="papertrail_database_passphrase_prefs.xml"/>
-        <exclude domain="sharedpref" path="papertrail_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_database_passphrase_prefs.xml"/>
-        <exclude domain="sharedpref" path="securevault_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_system_integrity_prefs.xml"/>
-        <exclude domain="sharedpref" path="securevault_system_integrity_fallback_prefs.xml"/>
 
         <!-- Exclude SecureVault encrypted blob files and internal receipts in files directory -->
         <exclude domain="file" path="securevault"/>
@@ -31,11 +28,8 @@
 
         <!-- Exclude SharedPreferences storing Keystore-encrypted database passphrases and biometric credentials -->
         <exclude domain="sharedpref" path="papertrail_database_passphrase_prefs.xml"/>
-        <exclude domain="sharedpref" path="papertrail_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_database_passphrase_prefs.xml"/>
-        <exclude domain="sharedpref" path="securevault_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="securevault_system_integrity_prefs.xml"/>
-        <exclude domain="sharedpref" path="securevault_system_integrity_fallback_prefs.xml"/>
 
         <!-- Exclude SecureVault encrypted blob files and receipts from device-to-device migration -->
         <exclude domain="file" path="securevault"/>

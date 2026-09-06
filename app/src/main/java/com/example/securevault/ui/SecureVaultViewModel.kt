@@ -9,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.security.SecurityAuditPreferences
 import com.example.data.security.SecurityIntegrityAuditor
+import com.example.security.KeystoreSecurityState
+import com.example.security.KeystoreUnavailableException
 import com.example.securevault.data.SecureVaultDatabase
 import com.example.securevault.data.SecureVaultKeyManager
 import com.example.securevault.data.SecureVaultRepository
@@ -123,23 +125,60 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   val showCredentialSetupDialog: StateFlow<Boolean> = _showCredentialSetupDialog.asStateFlow()
 
   private val _masterCredentialType = MutableStateFlow<MasterCredentialType>(
-    SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+    try {
+      SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+    } catch (e: Exception) {
+      MasterCredentialType.PIN
+    }
   )
   val masterCredentialType: StateFlow<MasterCredentialType> = _masterCredentialType.asStateFlow()
 
+  private val _keystoreFailure = MutableStateFlow<Throwable?>(null)
+  val keystoreFailure: StateFlow<Throwable?> = _keystoreFailure.asStateFlow()
+
   init {
     viewModelScope.launch {
-      repository.verifyIntegrityAndSelfHeal()
-      _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+      try {
+        repository.verifyIntegrityAndSelfHeal()
+        _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+      } catch (e: KeystoreUnavailableException) {
+        Log.e(TAG, "Keystore unavailable during SecureVault init: ${e.message}", e)
+        _keystoreFailure.value = e
+      } catch (e: Throwable) {
+        Log.e(TAG, "Error during SecureVault init: ${e.message}", e)
+      }
+    }
+  }
+
+  fun retryKeystore() {
+    viewModelScope.launch {
+      try {
+        _keystoreFailure.value = null
+        repository.verifyIntegrityAndSelfHeal()
+        _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+      } catch (e: KeystoreUnavailableException) {
+        _keystoreFailure.value = e
+      } catch (e: Throwable) {
+        Log.e(TAG, "Retry error: ${e.message}", e)
+      }
     }
   }
 
   fun refreshMasterCredentialType() {
-    _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+    try {
+      _masterCredentialType.value = SecureVaultBiometricTracker.getMasterCredentialType(getApplication())
+    } catch (e: KeystoreUnavailableException) {
+      _keystoreFailure.value = e
+    }
   }
 
   fun isMasterCredentialConfigured(): Boolean {
-    return SecureVaultBiometricTracker.isExplicitlyConfigured(getApplication())
+    return try {
+      SecureVaultBiometricTracker.isExplicitlyConfigured(getApplication())
+    } catch (e: KeystoreUnavailableException) {
+      _keystoreFailure.value = e
+      false
+    }
   }
 
   fun openCredentialSetupDialog() {
@@ -156,37 +195,42 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
     type: MasterCredentialType
   ): Boolean {
     val context = getApplication<Application>()
-    val isExplicit = SecureVaultBiometricTracker.isExplicitlyConfigured(context)
+    try {
+      val isExplicit = SecureVaultBiometricTracker.isExplicitlyConfigured(context)
 
-    if (isExplicit) {
-      if (currentSecret.isNullOrBlank()) {
-        _errorMessage.value = "Current ${type.title} is required to change credentials."
-        return false
-      }
-      val (success, message) = SecureVaultBiometricTracker.changeMasterCredential(context, currentSecret, newSecret, type)
-      if (success) {
+      if (isExplicit) {
+        if (currentSecret.isNullOrBlank()) {
+          _errorMessage.value = "Current ${type.title} is required to change credentials."
+          return false
+        }
+        val (success, message) = SecureVaultBiometricTracker.changeMasterCredential(context, currentSecret, newSecret, type)
+        if (success) {
+          _masterCredentialType.value = type
+          _showCredentialSetupDialog.value = false
+          _infoMessage.value = message
+          return true
+        } else {
+          _errorMessage.value = message
+          return false
+        }
+      } else {
+        if (newSecret.length < type.minLength) {
+          _errorMessage.value = "${type.title} must be at least ${type.minLength} characters."
+          return false
+        }
+        if (type == MasterCredentialType.PIN && !newSecret.all { it.isDigit() }) {
+          _errorMessage.value = "Master PIN must contain digits only."
+          return false
+        }
+        SecureVaultBiometricTracker.setMasterCredential(context, newSecret, type)
         _masterCredentialType.value = type
         _showCredentialSetupDialog.value = false
-        _infoMessage.value = message
+        _infoMessage.value = "${type.title} successfully configured."
         return true
-      } else {
-        _errorMessage.value = message
-        return false
       }
-    } else {
-      if (newSecret.length < type.minLength) {
-        _errorMessage.value = "${type.title} must be at least ${type.minLength} characters."
-        return false
-      }
-      if (type == MasterCredentialType.PIN && !newSecret.all { it.isDigit() }) {
-        _errorMessage.value = "Master PIN must contain digits only."
-        return false
-      }
-      SecureVaultBiometricTracker.setMasterCredential(context, newSecret, type)
-      _masterCredentialType.value = type
-      _showCredentialSetupDialog.value = false
-      _infoMessage.value = "${type.title} successfully configured."
-      return true
+    } catch (e: KeystoreUnavailableException) {
+      _keystoreFailure.value = e
+      return false
     }
   }
 
@@ -221,41 +265,50 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
   }
 
   fun verifyMasterPassphraseAndReEnroll(passphrase: String, activity: FragmentActivity): Boolean {
-    val credType = SecureVaultBiometricTracker.getMasterCredentialType(activity)
-    return when (val result = SecureVaultBiometricTracker.verifyMasterCredential(activity, passphrase)) {
-      is MasterCredentialVerifyResult.Success -> {
-        // Regenerate the Hardware KeyStore key for the new biometric roster
-        SecureVaultKeyManager.resetAndRegenerateKey()
-        SecureVaultBiometricTracker.recordCurrentMetrics(activity)
-        _biometricRosterAlert.value = null
-        _showPassphrasePrompt.value = false
+    val credType = try {
+      SecureVaultBiometricTracker.getMasterCredentialType(activity)
+    } catch (e: Exception) {
+      MasterCredentialType.PIN
+    }
+    return try {
+      when (val result = SecureVaultBiometricTracker.verifyMasterCredential(activity, passphrase)) {
+        is MasterCredentialVerifyResult.Success -> {
+          // Regenerate the Hardware KeyStore key for the new biometric roster
+          SecureVaultKeyManager.resetAndRegenerateKey()
+          SecureVaultBiometricTracker.recordCurrentMetrics(activity)
+          _biometricRosterAlert.value = null
+          _showPassphrasePrompt.value = false
 
-        val newCipher = try {
-          SecureVaultKeyManager.initEncryptCipher()
-        } catch (e: Exception) {
-          null
+          val newCipher = try {
+            SecureVaultKeyManager.initEncryptCipher()
+          } catch (e: Exception) {
+            null
+          }
+          authManager.unlockDirectly(newCipher)
+          _infoMessage.value = "Identity verified via ${credType.title}. Hardware vault unlocked."
+          true
         }
-        authManager.unlockDirectly(newCipher)
-        _infoMessage.value = "Identity verified via ${credType.title}. Hardware vault unlocked."
-        true
-      }
-      is MasterCredentialVerifyResult.LockedOut -> {
-        _errorMessage.value = "Too many failed attempts. Verification locked out for ${result.remainingSeconds} seconds."
-        false
-      }
-      is MasterCredentialVerifyResult.InvalidCredential -> {
-        val remainingMsg = if (result.attemptsRemaining > 0) {
-          " (${result.attemptsRemaining} attempts left before lockout)"
-        } else {
-          ""
+        is MasterCredentialVerifyResult.LockedOut -> {
+          _errorMessage.value = "Too many failed attempts. Verification locked out for ${result.remainingSeconds} seconds."
+          false
         }
-        _errorMessage.value = "Incorrect ${credType.title}. Please try again$remainingMsg."
-        false
+        is MasterCredentialVerifyResult.InvalidCredential -> {
+          val remainingMsg = if (result.attemptsRemaining > 0) {
+            " (${result.attemptsRemaining} attempts left before lockout)"
+          } else {
+            ""
+          }
+          _errorMessage.value = "Incorrect ${credType.title}. Please try again$remainingMsg."
+          false
+        }
+        is MasterCredentialVerifyResult.NotConfigured -> {
+          _errorMessage.value = "No Master Credential has been configured. Existing vault files cannot be recovered."
+          false
+        }
       }
-      is MasterCredentialVerifyResult.NotConfigured -> {
-        _errorMessage.value = "No Master Credential has been configured. Existing vault files cannot be recovered."
-        false
-      }
+    } catch (e: KeystoreUnavailableException) {
+      _keystoreFailure.value = e
+      false
     }
   }
 

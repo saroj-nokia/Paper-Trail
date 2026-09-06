@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.security.KeystoreUnavailableException
 import com.example.securevault.model.SecureFileItem
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -53,6 +54,13 @@ abstract class SecureVaultDatabase : RoomDatabase() {
       }
     }
 
+    @androidx.annotation.VisibleForTesting
+    fun resetForTesting() {
+      synchronized(this) {
+        INSTANCE = null
+      }
+    }
+
     private fun buildDatabase(appContext: Context): SecureVaultDatabase {
       if (!isEncryptionFallbackActive) {
         try {
@@ -76,6 +84,9 @@ abstract class SecureVaultDatabase : RoomDatabase() {
           isEncryptionFallbackActive = false
           Log.i(TAG, "SecureVault SQLCipher encrypted database successfully initialized and verified.")
           return encryptedDb
+        } catch (e: KeystoreUnavailableException) {
+          Log.e(TAG, "Hardware Keystore failure while retrieving SecureVault database passphrase.", e)
+          throw e
         } catch (e: Throwable) {
           Log.e(TAG, "SecureVault SQLCipher initialization failed: ${e.message}. Falling back to plaintext Room database.", e)
           isEncryptionFallbackActive = true

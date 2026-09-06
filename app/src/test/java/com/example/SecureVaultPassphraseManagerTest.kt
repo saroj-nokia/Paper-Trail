@@ -26,7 +26,6 @@ class SecureVaultPassphraseManagerTest {
     context = ApplicationProvider.getApplicationContext()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FILE)
-      context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FALLBACK_FILE)
     }
   }
 
@@ -47,20 +46,5 @@ class SecureVaultPassphraseManagerTest {
       SecureVaultPassphraseManager.KEYSTORE_KEY_ALIAS
     )
     assertEquals("securevault_db_passphrase_key", SecureVaultPassphraseManager.KEYSTORE_KEY_ALIAS)
-  }
-
-  @Test
-  fun `test fallback plaintext upgrade to KeystoreCipherProvider`() {
-    val expectedBytes = ByteArray(32) { (it * 5).toByte() }
-    val samplePassphraseBase64 = android.util.Base64.encodeToString(expectedBytes, android.util.Base64.NO_WRAP)
-
-    val fallbackPrefs = context.getSharedPreferences(SecureVaultPassphraseManager.PREFS_FALLBACK_FILE, Context.MODE_PRIVATE)
-    fallbackPrefs.edit().putString("securevault_db_encryption_key_v1", samplePassphraseBase64).commit()
-
-    val key = SecureVaultPassphraseManager.getOrCreatePassphrase(context)
-    assertArrayEquals(expectedBytes, key)
-
-    val subsequent = SecureVaultPassphraseManager.getOrCreatePassphrase(context)
-    assertArrayEquals(expectedBytes, subsequent)
   }
 }

@@ -65,7 +65,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.data.db.AppDatabase
-import com.example.data.db.DatabasePassphraseManager
 import com.example.data.security.BiometricAuthManager
 import com.example.ui.components.DashedDivider
 import com.example.ui.components.ReceiptPerforatedHeader
@@ -127,7 +126,7 @@ fun SettingsScreen(
     }
   }
 
-  val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive || DatabasePassphraseManager.isFallbackMode
+  val isEncryptionFallback = AppDatabase.isEncryptionFallbackActive
   val frostedGlassEnabled = LocalFrostedGlassEnabled.current
   val setFrostedGlassEnabled = LocalSetFrostedGlassEnabled.current
   val hazeState = LocalHazeState.current

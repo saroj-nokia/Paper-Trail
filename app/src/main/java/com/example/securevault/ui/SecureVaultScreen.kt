@@ -141,6 +141,8 @@ import com.example.securevault.security.BiometricRosterState
 import com.example.securevault.security.MasterCredentialType
 import com.example.securevault.security.SecureVaultBiometricTracker
 import com.example.securevault.security.VaultUpdateType
+import com.example.security.KeystoreSecurityState
+import com.example.ui.screens.auth.KeystoreUnavailableScreen
 import com.example.ui.screens.auth.SecurityIntegrityGateScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -177,6 +179,7 @@ fun SecureVaultScreen(
   val showPassphrasePrompt by viewModel.showPassphrasePrompt.collectAsStateWithLifecycle()
   val showCredentialSetupDialog by viewModel.showCredentialSetupDialog.collectAsStateWithLifecycle()
   val masterCredentialType by viewModel.masterCredentialType.collectAsStateWithLifecycle()
+  val keystoreFailure by viewModel.keystoreFailure.collectAsStateWithLifecycle()
 
   // Hardware Security Strict Gate check
   val isStrictGateEnabled = remember { SecurityAuditPreferences.isStrictGateEnabled(context) }
@@ -284,7 +287,17 @@ fun SecureVaultScreen(
   }
 
   val activeIntegrityReport = integrityReport
-  if (isStrictGateEnabled && activeIntegrityReport != null && activeIntegrityReport.hasCriticalFailures) {
+  if (keystoreFailure != null) {
+    KeystoreUnavailableScreen(
+      title = "Hardware Keystore Unavailable",
+      message = "SecureVault requires a functioning hardware security module to protect master credentials and encryption keys. Paper Trail will not fall back to unencrypted storage.",
+      detailMessage = keystoreFailure?.message,
+      onRetry = {
+        viewModel.retryKeystore()
+      },
+      onReturnToApp = onNavigateBack
+    )
+  } else if (isStrictGateEnabled && activeIntegrityReport != null && activeIntegrityReport.hasCriticalFailures) {
     // Isolated hardware security failure: Gate SecureVault without impacting the rest of Paper Trail
     SecurityIntegrityGateScreen(
       initialReport = activeIntegrityReport,
