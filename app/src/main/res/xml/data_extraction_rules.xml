@@ -9,6 +9,8 @@
         <exclude domain="database" path="."/>
 
         <!-- Exclude EncryptedSharedPreferences storing database master keys, passphrases, and biometric tracker -->
+        <exclude domain="sharedpref" path="papertrail_database_passphrase_prefs.xml"/>
+        <exclude domain="sharedpref" path="papertrail_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs.xml"/>
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs_fallback.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs.xml"/>
@@ -30,6 +32,8 @@
         <exclude domain="database" path="."/>
 
         <!-- Exclude EncryptedSharedPreferences from device-to-device migration -->
+        <exclude domain="sharedpref" path="papertrail_database_passphrase_prefs.xml"/>
+        <exclude domain="sharedpref" path="papertrail_database_passphrase_fallback_prefs.xml"/>
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs.xml"/>
         <exclude domain="sharedpref" path="papertrail_secure_vault_prefs_fallback.xml"/>
         <exclude domain="sharedpref" path="securevault_encrypted_prefs.xml"/>
