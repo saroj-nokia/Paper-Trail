@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
+import com.example.security.KeystoreCipherProvider
 import com.example.securevault.logging.CryptoLogger
 import com.example.securevault.model.SecureFileItem
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,7 @@ import java.io.File
  * Provides update protection and integrity recovery for SecureVault.
  *
  * It persists an encrypted shadow journal of file metadata in noBackupFilesDir
- * encrypted with a dedicated Keystore MasterKey via EncryptedFile.
+ * encrypted with a dedicated Keystore key ("securevault_shadow_key") via KeystoreCipherProvider.
  * In the event of an unexpected database migration issue or OS interrupted update,
  * SecureVault can verify data integrity and restore metadata records so that
  * no encrypted file ever loses its decryption parameters (wrapped DEK, IVs).
@@ -24,24 +25,17 @@ import java.io.File
 object SecureVaultMetadataSafety {
   private const val TAG = "SecureVaultMetaSafety"
   private const val SHADOW_FILE_NAME = "securevault_meta_shadow.json"
-  private const val SHADOW_MASTER_KEY_ALIAS = "securevault_shadow_master_key"
+  const val KEYSTORE_KEY_ALIAS = "securevault_shadow_key"
+  private const val LEGACY_MASTER_KEY_ALIAS = "securevault_shadow_master_key"
 
-  private fun getShadowFile(context: Context): File {
+  fun getShadowFile(context: Context): File {
     val dir = context.noBackupFilesDir ?: context.filesDir
     return File(dir, SHADOW_FILE_NAME)
-  }
-
-  private fun getMasterKey(context: Context): MasterKey {
-    return MasterKey.Builder(context, SHADOW_MASTER_KEY_ALIAS)
-      .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-      .build()
   }
 
   suspend fun recordShadowSnapshot(context: Context, items: List<SecureFileItem>) = withContext(Dispatchers.IO) {
     try {
       val file = getShadowFile(context)
-      if (file.exists()) file.delete() // EncryptedFile requires the target not already exist
-
       val array = JSONArray().apply {
         items.forEach { item ->
           put(JSONObject().apply {
@@ -58,16 +52,18 @@ object SecureVaultMetadataSafety {
         }
       }
 
-      val encryptedFile = EncryptedFile.Builder(
-        context,
-        file,
-        getMasterKey(context),
-        EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
-      ).build()
+      val jsonBytes = array.toString().toByteArray(Charsets.UTF_8)
+      val encryptedBytes = KeystoreCipherProvider.encrypt(KEYSTORE_KEY_ALIAS, jsonBytes)
 
-      encryptedFile.openFileOutput().use { out ->
-        out.write(array.toString().toByteArray(Charsets.UTF_8))
+      // Write safely using a temporary file
+      val tempFile = File(file.parentFile, "${file.name}.tmp")
+      tempFile.writeBytes(encryptedBytes)
+      if (file.exists()) file.delete()
+      if (!tempFile.renameTo(file)) {
+        file.writeBytes(encryptedBytes)
+        tempFile.delete()
       }
+
       CryptoLogger.hardware("META_SHADOW", "Encrypted metadata shadow journal updated (${items.size} records).")
     } catch (e: Exception) {
       Log.w(TAG, "Failed to record metadata shadow snapshot: ${e.message}")
@@ -76,41 +72,73 @@ object SecureVaultMetadataSafety {
 
   suspend fun readShadowSnapshot(context: Context): List<SecureFileItem> = withContext(Dispatchers.IO) {
     val file = getShadowFile(context)
-    if (!file.exists()) return@withContext emptyList()
+    if (!file.exists() || file.length() == 0L) return@withContext emptyList()
 
     try {
+      val fileBytes = file.readBytes()
+      val decryptedBytes = KeystoreCipherProvider.decrypt(KEYSTORE_KEY_ALIAS, fileBytes)
+      val jsonString = String(decryptedBytes, Charsets.UTF_8)
+      return@withContext parseJsonToItems(jsonString)
+    } catch (e: Exception) {
+      Log.i(TAG, "Standard KeystoreCipherProvider decryption failed (${e.message}). Checking for legacy EncryptedFile format...")
+    }
+
+    // Attempt migration from legacy EncryptedFile format
+    val legacyItems = tryReadLegacyEncryptedFile(context, file)
+    if (legacyItems != null) {
+      // Re-encrypt and rewrite with the new KeystoreCipherProvider format
+      recordShadowSnapshot(context, legacyItems)
+      Log.i(TAG, "Successfully migrated shadow snapshot from legacy EncryptedFile to KeystoreCipherProvider.")
+      return@withContext legacyItems
+    }
+
+    Log.w(TAG, "Failed to read shadow snapshot using both modern and legacy decryption.")
+    emptyList()
+  }
+
+  private fun parseJsonToItems(jsonString: String): List<SecureFileItem> {
+    val array = JSONArray(jsonString)
+    val list = mutableListOf<SecureFileItem>()
+    for (i in 0 until array.length()) {
+      val obj = array.getJSONObject(i)
+      list.add(
+        SecureFileItem(
+          id = obj.optLong("id", 0L),
+          originalFileName = obj.getString("originalFileName"),
+          mimeType = obj.getString("mimeType"),
+          fileSizeBytes = obj.getLong("fileSizeBytes"),
+          encryptedBlobPath = obj.getString("encryptedBlobPath"),
+          dateAdded = obj.getLong("dateAdded"),
+          iv = obj.getString("iv"),
+          wrappedDek = obj.optString("wrappedDek", ""),
+          dekIv = obj.optString("dekIv", "")
+        )
+      )
+    }
+    return list
+  }
+
+  @Suppress("DEPRECATION")
+  private fun tryReadLegacyEncryptedFile(context: Context, file: File): List<SecureFileItem>? {
+    return try {
+      val masterKey = MasterKey.Builder(context, LEGACY_MASTER_KEY_ALIAS)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
       val encryptedFile = EncryptedFile.Builder(
         context,
         file,
-        getMasterKey(context),
+        masterKey,
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
       ).build()
 
       val jsonString = encryptedFile.openFileInput().use { input ->
         input.bufferedReader(Charsets.UTF_8).readText()
       }
-      val array = JSONArray(jsonString)
-      val list = mutableListOf<SecureFileItem>()
-      for (i in 0 until array.length()) {
-        val obj = array.getJSONObject(i)
-        list.add(
-          SecureFileItem(
-            id = obj.optLong("id", 0L),
-            originalFileName = obj.getString("originalFileName"),
-            mimeType = obj.getString("mimeType"),
-            fileSizeBytes = obj.getLong("fileSizeBytes"),
-            encryptedBlobPath = obj.getString("encryptedBlobPath"),
-            dateAdded = obj.getLong("dateAdded"),
-            iv = obj.getString("iv"),
-            wrappedDek = obj.optString("wrappedDek", ""),
-            dekIv = obj.optString("dekIv", "")
-          )
-        )
-      }
-      list
+      parseJsonToItems(jsonString)
     } catch (e: Exception) {
-      Log.w(TAG, "Failed to read shadow snapshot: ${e.message}")
-      emptyList()
+      Log.w(TAG, "Legacy EncryptedFile migration attempt failed: ${e.message}")
+      null
     }
   }
 
