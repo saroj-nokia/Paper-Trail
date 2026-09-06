@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- SecureVault video/audio playback no longer continues decoding in the background when the app is paused or stopped. Previously, ExoPlayer kept playing (and the custom decrypting DataSource kept actively decrypting) even after the app was backgrounded, despite SecureVault's authentication state re-locking at the same moment — wasting battery on invisible playback and leaving a gap between the vault's stated "everything shuts down when you leave" guarantee and its actual behavior. Playback now pauses on `ON_PAUSE`/`ON_STOP` and requires the user to explicitly resume it rather than continuing automatically or resuming on its own when the app returns to the foreground.
+
+---
+
 ## [1.1] - 2026-09-04 — Initial Public Release
 
 Paper Trail's initial production release consolidates the complete development history, hardening cycle, and architectural security reviews into a single release milestone. The entries below document the engineering progression across the three major development phases.
