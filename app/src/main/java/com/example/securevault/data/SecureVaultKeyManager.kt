@@ -58,22 +58,13 @@ object SecureVaultKeyManager {
       .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
       .setKeySize(256)
       .setUserAuthenticationRequired(true)
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      builder.setInvalidatedByBiometricEnrollment(true)
-    }
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      builder.setUserAuthenticationParameters(
+      .setInvalidatedByBiometricEnrollment(true)
+      .setUserAuthenticationParameters(
         0,
         KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
       )
-    } else {
-      @Suppress("DEPRECATION")
-      builder.setUserAuthenticationValidityDurationSeconds(0)
-    }
 
-    if (useStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    if (useStrongBox) {
       try {
         builder.setIsStrongBoxBacked(true)
         keyGenerator.init(builder.build())
@@ -106,9 +97,7 @@ object SecureVaultKeyManager {
   fun isKeyPermanentlyInvalidated(e: Throwable): Boolean {
     var curr: Throwable? = e
     while (curr != null) {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-        curr is android.security.keystore.KeyPermanentlyInvalidatedException
-      ) {
+      if (curr is android.security.keystore.KeyPermanentlyInvalidatedException) {
         return true
       }
       val msg = curr.message?.lowercase() ?: ""

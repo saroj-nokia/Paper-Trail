@@ -24,9 +24,7 @@ class SecureVaultPassphraseManagerTest {
   @Before
   fun setUp() {
     context = ApplicationProvider.getApplicationContext()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FILE)
-    }
+    context.deleteSharedPreferences(SecureVaultPassphraseManager.PREFS_FILE)
   }
 
   @Test

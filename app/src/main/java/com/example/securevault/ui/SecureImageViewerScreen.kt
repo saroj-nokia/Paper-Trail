@@ -324,11 +324,7 @@ fun SecureImageViewerScreen(
               val imageLoader = remember(context) {
                 ImageLoader.Builder(context)
                   .components {
-                    if (Build.VERSION.SDK_INT >= 28) {
-                      add(ImageDecoderDecoder.Factory())
-                    } else {
-                      add(GifDecoder.Factory())
-                    }
+                    add(ImageDecoderDecoder.Factory())
                   }
                   .build()
               }

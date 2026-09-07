@@ -71,7 +71,7 @@ object KeystoreCipherProvider {
       .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
       .setKeySize(256)
 
-    if (useStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    if (useStrongBox) {
       try {
         builder.setIsStrongBoxBacked(true)
         keyGenerator.init(builder.build())

@@ -22,9 +22,7 @@ class DatabasePassphraseManagerTest {
   @Before
   fun setUp() {
     context = ApplicationProvider.getApplicationContext()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      context.deleteSharedPreferences(DatabasePassphraseManager.PREFS_FILE)
-    }
+    context.deleteSharedPreferences(DatabasePassphraseManager.PREFS_FILE)
   }
 
   @Test
