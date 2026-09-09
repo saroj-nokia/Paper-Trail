@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Kotlin Version Upgrade (Stage 1 & Stage 2: Kotlin 2.3.20 -> Kotlin 2.4.20)**:
+  - **Stage 1 (Kotlin 2.3.x line)**: Verified stable release `2.3.20` on official documentation, updated `kotlin` version catalog entry in `gradle/libs.versions.toml`, and validated compatibility with AGP 9.1.1 and bundled Jetpack Compose compiler.
+  - **Stage 2 (Kotlin 2.4.x line)**: Confirmed official stable release of `2.4.20` on `kotlinlang.org` and Maven Central (released September 7, 2026, graduating from release-candidate status, adhering to the project's stable-only dependency policy). Updated `kotlin` version catalog entry to `2.4.20`.
+  - **Compose Compiler Compatibility**: Confirmed Jetpack Compose compiler alignment (bundled natively with the Kotlin Gradle Plugin) with runtime stability inference for internal types and validated zero usage of deprecated compiler flags (`StrongSkipping`, `IntrinsicRemember`).
+  - **Build & Verification**: Verified clean compilation across modules with 0 compile errors and 0 deprecation warnings (`--warning-mode=all`), successful debug build packaging (`assembleDebug`), and 100% test suite pass rate (`27/27` Robolectric and JUnit unit tests passing via `gradle test`).
 - **Migration off Deprecated `androidx.security.crypto` (Phases 1–5)**:
   - **Phase 1 (`KeystoreCipherProvider`)**: Replaced deprecated `MasterKey` and Tink-based wrappers with a clean, native Android Keystore cryptographic provider (`KeystoreCipherProvider`). Uses standard `AndroidKeyStore` provider with hardware StrongBox Keymaster backing and TEE fallback, supporting AES-256-GCM authenticated encryption/decryption, automatic 12-byte IV prepending, and raw/string payload transformations.
   - **Phase 2 (`DatabasePassphraseManager`)**: Migrated the core database passphrase storage from `EncryptedSharedPreferences` to standard private `SharedPreferences` with field-level encryption via `KeystoreCipherProvider` using the dedicated alias `"db_passphrase_key"`.
