@@ -1,14 +1,17 @@
 package com.example
 
 import android.content.Context
+import android.view.WindowManager
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.model.SubscriptionCycle
 import com.example.data.model.VaultItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -208,5 +211,15 @@ class ExampleRobolectricTest {
     )
     assertEquals(false, regularPreview.isTooLargeToPreview)
     assertNotNull(regularPreview.decryptedBytes)
+  }
+
+  @Test
+  fun `test MainActivity sets FLAG_SECURE on window`() {
+    Robolectric.buildActivity(MainActivity::class.java).setup().use { controller ->
+      val activity = controller.get()
+      val flags = activity.window.attributes.flags
+      val hasFlagSecure = (flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+      assertTrue("MainActivity window must have FLAG_SECURE set to protect against screenshot/thumbnail exposure", hasFlagSecure)
+    }
   }
 }

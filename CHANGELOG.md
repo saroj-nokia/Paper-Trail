@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **App-wide `FLAG_SECURE` Screen & Snapshot Protection**:
+  - Configured `WindowManager.LayoutParams.FLAG_SECURE` on `MainActivity.window` in `onCreate()` before `setContent`.
+  - Blocks screenshots, screen recordings, remote screen capture (e.g. MediaProjection, unprivileged accessibility recording), and prevents the Android OS Recent Apps switcher from generating or caching visible thumbnail previews of receipts, financial ledgers, or SecureVault content.
+  - Composes cleanly with independent system bar / immersive window controls (e.g. `SecureMediaPlayerScreen`).
+  - Documented the UX tradeoff (user screenshotting/screen recording disabled app-wide) vs. the alternative of conditionally scoping the flag to SecureVault screens only.
+
 ### Changed
 - **Kotlin Version Upgrade (Stage 1 & Stage 2: Kotlin 2.3.20 -> Kotlin 2.4.20)**:
   - **Stage 1 (Kotlin 2.3.x line)**: Verified stable release `2.3.20` on official documentation, updated `kotlin` version catalog entry in `gradle/libs.versions.toml`, and validated compatibility with AGP 9.1.1 and bundled Jetpack Compose compiler.
