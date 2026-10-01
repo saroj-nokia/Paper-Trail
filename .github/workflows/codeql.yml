@@ -37,7 +37,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
-    # 1. Match the JDK setup step from your working Android CI script
     - name: Set up JDK 21
       if: matrix.language == 'java-kotlin'
       uses: actions/setup-java@v5
@@ -45,7 +44,6 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
 
-    # 2. Use the same Gradle Action to ensure environments match
     - name: Setup Gradle
       if: matrix.language == 'java-kotlin'
       uses: gradle/actions/setup-gradle@v6
@@ -57,17 +55,23 @@ jobs:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
 
-    # 3. Mirror your functional compilation steps exactly
     - name: Run manual build steps
       if: matrix.build-mode == 'manual' && matrix.language == 'java-kotlin'
       shell: bash
       run: |
+        echo "Generating fallback debug.keystore for CI compilation..."
+        keytool -genkey -v -keystore debug.keystore \
+          -storepass android -alias androiddebugkey -keypass android \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -dname "CN=Android Debug,O=Android,C=US"
+
         echo "Granting execution permissions for the Gradle Wrapper..."
         chmod +x gradlew
         
-        echo "Compiling the application module for CodeQL parsing..."
-        ./gradlew :app:assembleDebug --stacktrace
-
+        echo "Compiling application modules with daemon overrides..."
+        # -Dorg.gradle.jvmargs stabilizes KSP/IntelliJ headless environment bugs during parallel analysis
+        ./gradlew :app:assembleDebug --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -Djava.awt.headless=true"
+        
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
       with:
