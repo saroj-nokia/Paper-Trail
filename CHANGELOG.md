@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented the UX tradeoff (user screenshotting/screen recording disabled app-wide) vs. the alternative of conditionally scoping the flag to SecureVault screens only.
 
 ### Changed
+- **Toolchain Upgrade & Gradle Compatibility Audit (AGP 9.4.1 & Gradle 9.8.0)**:
+  - **Gradle Wrapper & AGP Alignment**: Upgraded Gradle wrapper from `9.3.1` to `9.8.0` (`gradle/wrapper/gradle-wrapper.properties`) and bumped the Android Gradle Plugin (AGP) in `gradle/libs.versions.toml` to `9.4.1` (the latest stable AGP release, compatible with Gradle 9.6.0+ and tested through Gradle 9.8.0).
+  - **Gradle 10 Incompatibility Audit (`--warning-mode all`)**: Ran comprehensive diagnostic inspection across debug, release, and unit test builds with `--warning-mode all`. Confirmed that the previous CI warning (`"Deprecated Gradle features were used in this build, making it incompatible with Gradle 10"`) has been resolved.
+  - **Upstream Deprecation Tracking (`Configuration.setVisible`)**: Identified the single remaining deprecation logged in the incubating Problems Report (`build/reports/problems/problems-report.html`), which originates from `com.android.internal.application` (AGP's internal `Configuration.setVisible(boolean)` call, scheduled for Gradle 11 removal). Confirmed zero deprecated API usages in project build scripts (`build.gradle.kts`, `app/build.gradle.kts`, `settings.gradle.kts`), with the AGP internal deprecation tracked for upstream resolution by Google before Gradle 11.
+  - **Verification**: Verified clean build of `:app:assembleDebug`, `:app:assembleRelease`, and 100% passing tests on `:app:test` under Gradle 9.8.0 and AGP 9.4.1.
 - **Kotlin Version Upgrade (Stage 1 & Stage 2: Kotlin 2.3.20 -> Kotlin 2.4.20)**:
   - **Stage 1 (Kotlin 2.3.x line)**: Verified stable release `2.3.20` on official documentation, updated `kotlin` version catalog entry in `gradle/libs.versions.toml`, and validated compatibility with AGP 9.1.1 and bundled Jetpack Compose compiler.
   - **Stage 2 (Kotlin 2.4.x line)**: Confirmed official stable release of `2.4.20` on `kotlinlang.org` and Maven Central (released September 7, 2026, graduating from release-candidate status, adhering to the project's stable-only dependency policy). Updated `kotlin` version catalog entry to `2.4.20`.
