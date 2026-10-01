@@ -1,0 +1,74 @@
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+name: "CodeQL Advanced"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '17 15 * * 2'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: actions
+          build-mode: none
+        - language: java-kotlin
+          build-mode: manual
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    # 1. Match the JDK setup step from your working Android CI script
+    - name: Set up JDK 21
+      if: matrix.language == 'java-kotlin'
+      uses: actions/setup-java@v5
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    # 2. Use the same Gradle Action to ensure environments match
+    - name: Setup Gradle
+      if: matrix.language == 'java-kotlin'
+      uses: gradle/actions/setup-gradle@v6
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+
+    # 3. Mirror your functional compilation steps exactly
+    - name: Run manual build steps
+      if: matrix.build-mode == 'manual' && matrix.language == 'java-kotlin'
+      shell: bash
+      run: |
+        echo "Granting execution permissions for the Gradle Wrapper..."
+        chmod +x gradlew
+        
+        echo "Compiling the application module for CodeQL parsing..."
+        ./gradlew :app:assembleDebug --stacktrace
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{matrix.language}}"
