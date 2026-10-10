@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -62,6 +64,8 @@ android {
     compose = true
     buildConfig = true
   }
+  // Googlebook: Keep every ABI shipped by dependencies (do NOT add ndk.abiFilters or splits.abi).
+  // arm64-v8a (Qualcomm) and x86_64 (Intel/AMD) must both stay available for Googlebook.
   packaging {
     jniLibs {
       useLegacyPackaging = true
@@ -144,4 +148,47 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+abstract class VerifyReleaseApkNativeLibsTask : DefaultTask() {
+  @get:InputFile
+  abstract val apkFile: RegularFileProperty
+
+  @TaskAction
+  fun verify() {
+    val apk = apkFile.get().asFile
+    if (!apk.exists()) {
+      throw GradleException("Release APK not found at ${apk.absolutePath}. Run assembleRelease first.")
+    }
+
+    val requiredAbis = listOf("arm64-v8a", "x86_64")
+    val requiredLibs = listOf("libsqlcipher.so", "libmlkit_google_ocr_pipeline.so")
+
+    val zip = ZipFile(apk)
+    val entries = zip.entries().asSequence().map { it.name }.toSet()
+    zip.close()
+
+    val missing = mutableListOf<String>()
+    for (abi in requiredAbis) {
+      for (lib in requiredLibs) {
+        val path = "lib/$abi/$lib"
+        if (!entries.contains(path)) {
+          missing.add(path)
+        }
+      }
+    }
+
+    if (missing.isNotEmpty()) {
+      throw GradleException("Googlebook ABI verification failed! Missing required native libraries in release APK: $missing")
+    }
+
+    println("SUCCESS: Googlebook ABI verification passed! Verified libsqlcipher.so and ML Kit native libs exist for arm64-v8a and x86_64 in release APK.")
+  }
+}
+
+tasks.register<VerifyReleaseApkNativeLibsTask>("verifyReleaseApkNativeLibs") {
+  group = "verification"
+  description = "Verifies that the release APK contains required native libraries for Googlebook ABIs (arm64-v8a and x86_64)"
+  dependsOn("assembleRelease")
+  apkFile.set(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
 }

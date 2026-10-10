@@ -130,6 +130,12 @@ jobs:
       - name: Build Release APK
         run: ./gradlew :app:assembleRelease --stacktrace
 
+      - name: Verify Googlebook CPU/ABI Native Libraries in Release APK
+        run: |
+          ./gradlew :app:verifyReleaseApkNativeLibs --stacktrace
+          echo "Native libraries in Release APK by ABI:"
+          unzip -l app/build/outputs/apk/release/*.apk | grep "lib/" || true
+
       - name: Build Release App Bundle (AAB)
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_bundle == true || github.event.inputs.build_bundle == 'true' }}
         run: ./gradlew :app:bundleRelease --stacktrace
