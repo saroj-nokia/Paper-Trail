@@ -2,11 +2,9 @@ package com.example.ui.screens.capture
 
 import android.app.DatePickerDialog
 import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -161,13 +159,9 @@ fun CaptureOcrScreen(
   // Temp Camera URI
   var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-  // Hardware and intent availability check for Camera
+  // Hardware feature availability check for Camera
   val isCameraAvailable = remember(context) {
-    val pm = context.packageManager
-    val hasFeature = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
-    val captureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-    val hasHandler = captureIntent.resolveActivity(pm) != null
-    hasFeature && hasHandler
+    context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
   }
 
   // Launchers
