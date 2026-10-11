@@ -5,7 +5,11 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
@@ -17,6 +21,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -135,12 +142,13 @@ fun PaperTrailAppContent(
         onUnlocked = { /* unlocked state updated in StateFlow */ }
       )
     } else {
-      val bottomNavItems = listOf(
-        Triple(Screen.Dashboard.route, "Dashboard", Icons.Default.Dashboard),
-        Triple(Screen.Vault.route, "Ledger", Icons.AutoMirrored.Filled.ReceiptLong),
-        Triple(Screen.SecureVault.route, "SecureVault", Icons.Default.EnhancedEncryption),
-        Triple(Screen.Settings.route, "Security", Icons.Default.Shield)
-      )
+      BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val bottomNavItems = listOf(
+          Triple(Screen.Dashboard.route, "Dashboard", Icons.Default.Dashboard),
+          Triple(Screen.Vault.route, "Ledger", Icons.AutoMirrored.Filled.ReceiptLong),
+          Triple(Screen.SecureVault.route, "SecureVault", Icons.Default.EnhancedEncryption),
+          Triple(Screen.Settings.route, "Security", Icons.Default.Shield)
+        )
 
       val topLevelRoutes = remember {
         setOf(
@@ -151,7 +159,9 @@ fun PaperTrailAppContent(
         )
       }
 
-      val showBottomBar = currentRoute in topLevelRoutes && !forceHideBottomBar.value
+      val isLargeScreen = maxWidth >= 600.dp
+      val showBottomBar = currentRoute in topLevelRoutes && !forceHideBottomBar.value && !isLargeScreen
+      val showNavRail = currentRoute in topLevelRoutes && !forceHideBottomBar.value && isLargeScreen
 
       var selectedTabRoute by rememberSaveable { mutableStateOf(startDestination) }
 
@@ -161,55 +171,97 @@ fun PaperTrailAppContent(
         }
       }
 
-      Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-          if (showBottomBar) {
-            NavigationBar(
-              containerColor = if (frostedGlassEnabled) {
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
-              } else {
-                MaterialTheme.colorScheme.surface
-              },
-              contentColor = MaterialTheme.colorScheme.onSurface,
-              modifier = if (frostedGlassEnabled) {
-                Modifier.frostedGlassBottomBar(hazeState, enabled = true)
-              } else {
-                Modifier
-              }
-            ) {
-              bottomNavItems.forEach { (route, label, icon) ->
-                val isSelected = selectedTabRoute == route
-                NavigationBarItem(
-                  icon = { Icon(icon, contentDescription = label) },
-                  label = { Text(label) },
-                  selected = isSelected,
-                  onClick = {
-                    if (selectedTabRoute != route) {
-                      selectedTabRoute = route
-                      if (currentRoute == Screen.SecureVault.route) {
-                        secureVaultViewModel.lockVault()
-                      }
-                      navController.navigateToTopLevelDestination(route)
+      Row(modifier = Modifier.fillMaxSize()) {
+        if (showNavRail) {
+          NavigationRail(
+            containerColor = if (frostedGlassEnabled) {
+              MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+            } else {
+              MaterialTheme.colorScheme.surface
+            },
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = if (frostedGlassEnabled) {
+              Modifier.frostedGlassBottomBar(hazeState, enabled = true)
+            } else {
+              Modifier
+            }
+          ) {
+            bottomNavItems.forEach { (route, label, icon) ->
+              val isSelected = selectedTabRoute == route
+              NavigationRailItem(
+                icon = { Icon(icon, contentDescription = label) },
+                label = { Text(label) },
+                selected = isSelected,
+                onClick = {
+                  if (selectedTabRoute != route) {
+                    selectedTabRoute = route
+                    if (currentRoute == Screen.SecureVault.route) {
+                      secureVaultViewModel.lockVault()
                     }
-                  },
-                  colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedTextColor = MaterialTheme.colorScheme.primary
-                  ),
-                  modifier = Modifier.testTag("nav_item_$route")
-                )
-              }
+                    navController.navigateToTopLevelDestination(route)
+                  }
+                },
+                colors = NavigationRailItemDefaults.colors(
+                  indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                  selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                  selectedTextColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.testTag("nav_rail_item_$route")
+              )
             }
           }
         }
-      ) { paddingValues ->
-        val bottomBarHeight = if (showBottomBar) paddingValues.calculateBottomPadding() else 0.dp
-        val bottomPadding = if (frostedGlassEnabled) 0.dp else bottomBarHeight
-        CompositionLocalProvider(
-          LocalBottomBarPadding provides (if (frostedGlassEnabled) bottomBarHeight else 0.dp)
-        ) {
+
+        Scaffold(
+          modifier = Modifier.weight(1f),
+          contentWindowInsets = WindowInsets(0, 0, 0, 0),
+          bottomBar = {
+            if (showBottomBar) {
+              NavigationBar(
+                containerColor = if (frostedGlassEnabled) {
+                  MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+                } else {
+                  MaterialTheme.colorScheme.surface
+                },
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = if (frostedGlassEnabled) {
+                  Modifier.frostedGlassBottomBar(hazeState, enabled = true)
+                } else {
+                  Modifier
+                }
+              ) {
+                bottomNavItems.forEach { (route, label, icon) ->
+                  val isSelected = selectedTabRoute == route
+                  NavigationBarItem(
+                    icon = { Icon(icon, contentDescription = label) },
+                    label = { Text(label) },
+                    selected = isSelected,
+                    onClick = {
+                      if (selectedTabRoute != route) {
+                        selectedTabRoute = route
+                        if (currentRoute == Screen.SecureVault.route) {
+                          secureVaultViewModel.lockVault()
+                        }
+                        navController.navigateToTopLevelDestination(route)
+                      }
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                      indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                      selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                      selectedTextColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.testTag("nav_item_$route")
+                  )
+                }
+              }
+            }
+          }
+        ) { paddingValues ->
+          val bottomBarHeight = if (showBottomBar) paddingValues.calculateBottomPadding() else 0.dp
+          val bottomPadding = if (frostedGlassEnabled) 0.dp else bottomBarHeight
+          CompositionLocalProvider(
+            LocalBottomBarPadding provides (if (frostedGlassEnabled) bottomBarHeight else 0.dp)
+          ) {
           NavHost(
             navController = navController,
             startDestination = startDestination,
@@ -340,6 +392,8 @@ fun PaperTrailAppContent(
       }
     }
   }
+}
+}
 }
 }
 }

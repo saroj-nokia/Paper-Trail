@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -223,19 +224,25 @@ fun DashboardScreen(
     val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
     val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
 
-    LazyColumn(
+    Box(
       modifier = Modifier
         .fillMaxSize()
         .padding(top = topPadding)
         .frostedGlassSource(hazeState, enabled = frostedGlassEnabled),
-      contentPadding = PaddingValues(
-        start = 16.dp,
-        end = 16.dp,
-        top = 12.dp + extraTopPadding,
-        bottom = 12.dp + bottomBarPadding
-      ),
-      verticalArrangement = Arrangement.spacedBy(16.dp)
+      contentAlignment = Alignment.TopCenter
     ) {
+      LazyColumn(
+        modifier = Modifier
+          .fillMaxSize()
+          .widthIn(max = 840.dp),
+        contentPadding = PaddingValues(
+          start = 16.dp,
+          end = 16.dp,
+          top = 12.dp + extraTopPadding,
+          bottom = 12.dp + bottomBarPadding
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+      ) {
       // 0a. Notification permission banner if on Android 13+ and not granted
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
         item {
@@ -677,6 +684,7 @@ fun DashboardScreen(
       }
     }
   }
+}
 }
 
 @Composable

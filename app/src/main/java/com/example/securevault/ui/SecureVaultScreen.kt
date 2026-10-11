@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -419,12 +420,18 @@ fun SecureVaultScreen(
     ) { paddingValues ->
       val bottomBarPadding = LocalBottomBarPadding.current
 
-      Column(
+      Box(
         modifier = Modifier
           .fillMaxSize()
           .padding(top = paddingValues.calculateTopPadding())
-          .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
+          .frostedGlassSource(hazeState, enabled = frostedGlassEnabled),
+        contentAlignment = Alignment.TopCenter
       ) {
+        Column(
+          modifier = Modifier
+            .fillMaxSize()
+            .widthIn(max = 840.dp)
+        ) {
         // Security Status & Storage Mode Banner
         Box(
           modifier = Modifier
@@ -693,6 +700,7 @@ fun SecureVaultScreen(
       }
     }
   }
+}
 
   // Storage Location & Vault Backup Options Dialog
   if (showStorageDialog) {

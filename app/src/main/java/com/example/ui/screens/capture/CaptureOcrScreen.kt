@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -267,14 +268,20 @@ fun CaptureOcrScreen(
     },
     containerColor = MaterialTheme.colorScheme.background
   ) { paddingValues ->
-    Column(
+    Box(
       modifier = Modifier
         .fillMaxSize()
-        .padding(paddingValues)
-        .verticalScroll(rememberScrollState())
-        .padding(horizontal = 16.dp, vertical = 8.dp),
-      verticalArrangement = Arrangement.spacedBy(16.dp)
+        .padding(paddingValues),
+      contentAlignment = Alignment.TopCenter
     ) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .widthIn(max = 840.dp)
+          .verticalScroll(rememberScrollState())
+          .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+      ) {
       // 1. Photo Capture / Gallery Actions
       Card(
         modifier = Modifier
@@ -708,4 +715,5 @@ fun CaptureOcrScreen(
       Spacer(modifier = Modifier.height(32.dp))
     }
   }
+}
 }

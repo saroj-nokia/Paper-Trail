@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -158,20 +159,26 @@ fun SettingsScreen(
     val topPadding = if (frostedGlassEnabled) 0.dp else paddingValues.calculateTopPadding()
     val extraTopPadding = if (frostedGlassEnabled) paddingValues.calculateTopPadding() else 0.dp
 
-    Column(
+    Box(
       modifier = Modifier
         .fillMaxSize()
         .padding(top = topPadding)
-        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
-        .verticalScroll(rememberScrollState())
-        .padding(
-          start = 16.dp,
-          end = 16.dp,
-          top = 12.dp + extraTopPadding,
-          bottom = 16.dp + bottomBarPadding
-        ),
-      verticalArrangement = Arrangement.spacedBy(16.dp)
+        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled),
+      contentAlignment = Alignment.TopCenter
     ) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .widthIn(max = 840.dp)
+          .verticalScroll(rememberScrollState())
+          .padding(
+            start = 16.dp,
+            end = 16.dp,
+            top = 12.dp + extraTopPadding,
+            bottom = 16.dp + bottomBarPadding
+          ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+      ) {
       // 0. Fallback Warning Banner if unencrypted storage fallback is active
       if (isEncryptionFallback) {
         Card(
@@ -496,4 +503,5 @@ fun SettingsScreen(
       }
     }
   }
+}
 }

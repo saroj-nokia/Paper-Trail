@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -115,6 +116,7 @@ fun SecureMediaPlayerScreen(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+  val configuration = LocalConfiguration.current
   val isVideo = remember(item.mimeType) { item.mimeType.startsWith("video/") }
 
   var isFullscreen by remember { mutableStateOf(false) }
@@ -125,12 +127,16 @@ fun SecureMediaPlayerScreen(
     val window = act.window ?: return
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     if (enable) {
-      act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      if (configuration.screenWidthDp < 600) {
+        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      }
       insetsController.hide(WindowInsetsCompat.Type.systemBars())
       insetsController.systemBarsBehavior =
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     } else {
-      act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+      if (configuration.screenWidthDp < 600) {
+        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+      }
       insetsController.show(WindowInsetsCompat.Type.systemBars())
     }
   }
@@ -158,7 +164,7 @@ fun SecureMediaPlayerScreen(
     onDispose {
       val act = context.findActivity()
       if (act != null) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         act.window?.let { window ->
           WindowCompat.getInsetsController(window, window.decorView)
             .show(WindowInsetsCompat.Type.systemBars())
