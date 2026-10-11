@@ -153,6 +153,13 @@ fun CaptureOcrScreen(
 
   val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
+  // Laptops may have no camera app; gallery/file picker stays available.
+  val hasCamera = remember {
+    context.packageManager.resolveActivity(
+      android.content.Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE), 0
+    ) != null
+  }
+
   // Temp Camera URI
   var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -355,11 +362,12 @@ fun CaptureOcrScreen(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-              Button(
+              if (hasCamera) Button(
                 onClick = {
                   val uri = ImageFileManager.createTempImageUri(context)
                   tempCameraUri = uri
-                  cameraLauncher.launch(uri)
+                  runCatching { cameraLauncher.launch(uri) }
+                    .onFailure { ocrMessage = "No camera app available — use Pick Image instead." }
                 },
                 modifier = Modifier.weight(1f).testTag("camera_capture_button"),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

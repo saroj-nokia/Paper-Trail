@@ -17,6 +17,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -151,13 +161,26 @@ fun PaperTrailAppContent(
         )
       }
 
-      val showBottomBar = currentRoute in topLevelRoutes && !forceHideBottomBar.value
+      // Laptops/tablets: rail instead of bottom bar (window can resize live; configChanges keeps this reactive)
+      val isWide = LocalConfiguration.current.screenWidthDp >= 600
+      val showNav = currentRoute in topLevelRoutes && !forceHideBottomBar.value
+      val showBottomBar = showNav && !isWide
 
       var selectedTabRoute by rememberSaveable { mutableStateOf(startDestination) }
 
       LaunchedEffect(currentRoute) {
         if (currentRoute != null && currentRoute in topLevelRoutes) {
           selectedTabRoute = currentRoute
+        }
+      }
+
+      val onSelectTab: (String) -> Unit = { route ->
+        if (selectedTabRoute != route) {
+          selectedTabRoute = route
+          if (currentRoute == Screen.SecureVault.route) {
+            secureVaultViewModel.lockVault()
+          }
+          navController.navigateToTopLevelDestination(route)
         }
       }
 
@@ -184,15 +207,7 @@ fun PaperTrailAppContent(
                   icon = { Icon(icon, contentDescription = label) },
                   label = { Text(label) },
                   selected = isSelected,
-                  onClick = {
-                    if (selectedTabRoute != route) {
-                      selectedTabRoute = route
-                      if (currentRoute == Screen.SecureVault.route) {
-                        secureVaultViewModel.lockVault()
-                      }
-                      navController.navigateToTopLevelDestination(route)
-                    }
-                  },
+                  onClick = { onSelectTab(route) },
                   colors = NavigationBarItemDefaults.colors(
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -210,12 +225,29 @@ fun PaperTrailAppContent(
         CompositionLocalProvider(
           LocalBottomBarPadding provides (if (frostedGlassEnabled) bottomBarHeight else 0.dp)
         ) {
+          Row(Modifier.fillMaxSize()) {
+          if (showNav && isWide) {
+            NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+              bottomNavItems.forEach { (route, label, icon) ->
+                NavigationRailItem(
+                  icon = { Icon(icon, contentDescription = label) },
+                  label = { Text(label) },
+                  selected = selectedTabRoute == route,
+                  onClick = { onSelectTab(route) },
+                  modifier = Modifier.testTag("nav_item_$route")
+                )
+              }
+            }
+          }
+          Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
           NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(
-              bottom = bottomPadding
-            ),
+            // Cap reading width on big screens, but let media playback use the full window.
+            modifier = Modifier
+              .then(if (forceHideBottomBar.value) Modifier else Modifier.widthIn(max = 840.dp))
+              .fillMaxWidth()
+              .padding(bottom = bottomPadding),
             enterTransition = {
               if (initialState.destination.route in topLevelRoutes && targetState.destination.route in topLevelRoutes) {
                 EnterTransition.None
@@ -338,6 +370,8 @@ fun PaperTrailAppContent(
           )
         }
       }
+          }
+          }
     }
   }
 }

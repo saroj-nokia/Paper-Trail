@@ -1,5 +1,7 @@
 package com.example
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -9,6 +11,15 @@ import androidx.activity.compose.setContent
 import com.example.ui.navigation.PaperTrailAppContent
 import com.example.ui.screens.vault.VaultViewModel
 import com.example.ui.theme.PaperTrailTheme
+
+/** Phones stay portrait as before; tablets and Googlebooks (sw >= 600dp) rotate/resize freely. */
+fun Activity.applyDefaultOrientation() {
+  requestedOrientation = if (resources.configuration.smallestScreenWidthDp < 600) {
+    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+  } else {
+    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+  }
+}
 
 class MainActivity : FragmentActivity() {
   private val viewModel: VaultViewModel by viewModels()
@@ -31,6 +42,7 @@ class MainActivity : FragmentActivity() {
       WindowManager.LayoutParams.FLAG_SECURE
     )
 
+    applyDefaultOrientation()
     enableEdgeToEdge()
     setContent {
       PaperTrailTheme {

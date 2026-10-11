@@ -64,7 +64,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -97,6 +105,7 @@ import com.example.securevault.model.SecureFileItem
 import com.example.ui.theme.LocalForceHideBottomBar
 import com.example.ui.theme.PaperTrailMotion
 import kotlinx.coroutines.delay
+import com.example.applyDefaultOrientation
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.crypto.Cipher
@@ -125,12 +134,14 @@ fun SecureMediaPlayerScreen(
     val window = act.window ?: return
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     if (enable) {
-      act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      if (act.resources.configuration.smallestScreenWidthDp < 600) {
+        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      }
       insetsController.hide(WindowInsetsCompat.Type.systemBars())
       insetsController.systemBarsBehavior =
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     } else {
-      act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+      act.applyDefaultOrientation()
       insetsController.show(WindowInsetsCompat.Type.systemBars())
     }
   }
@@ -158,7 +169,7 @@ fun SecureMediaPlayerScreen(
     onDispose {
       val act = context.findActivity()
       if (act != null) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        act.applyDefaultOrientation()
         act.window?.let { window ->
           WindowCompat.getInsetsController(window, window.decorView)
             .show(WindowInsetsCompat.Type.systemBars())
@@ -247,9 +258,30 @@ fun SecureMediaPlayerScreen(
     }
   }
 
+  val keyFocus = remember { FocusRequester() }
+  LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
+
   Surface(
     modifier = modifier
       .fillMaxSize()
+      .focusRequester(keyFocus)
+      .focusable()
+      .onPreviewKeyEvent { e ->
+        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        when (e.key) {
+          Key.Escape -> { if (isFullscreen) setFullscreen(false) else onBack(); true }
+          Key.Spacebar -> {
+            if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+            true
+          }
+          Key.DirectionLeft -> { exoPlayer.seekTo((exoPlayer.currentPosition - 10_000L).coerceAtLeast(0L)); true }
+          Key.DirectionRight -> {
+            val max = exoPlayer.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
+            exoPlayer.seekTo((exoPlayer.currentPosition + 10_000L).coerceAtMost(max)); true
+          }
+          else -> false
+        }
+      }
       .testTag("secure_media_player_screen"),
     color = DarkPlayerBackground
   ) {
