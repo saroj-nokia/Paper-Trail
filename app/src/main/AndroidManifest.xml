@@ -22,6 +22,13 @@
         android:name="android.hardware.fingerprint"
         android:required="false" />
 
+    <!-- Android 11+ package visibility: needed so resolveActivity() can see a camera app -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".PaperTrailApp"
         android:allowBackup="false"

@@ -209,8 +209,8 @@ fun VaultListScreen(
     ) {
       Column(
         modifier = Modifier
-          .fillMaxSize()
           .widthIn(max = 840.dp)
+          .fillMaxSize()
       ) {
       // 1. Search Bar
       OutlinedTextField(

@@ -19,6 +19,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import com.example.applyDefaultOrientation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -136,16 +137,14 @@ fun SecureMediaPlayerScreen(
     val window = act.window ?: return
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     if (enable) {
-      if (configuration.screenWidthDp < 600) {
+      if (configuration.smallestScreenWidthDp < 600) {
         act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
       }
       insetsController.hide(WindowInsetsCompat.Type.systemBars())
       insetsController.systemBarsBehavior =
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     } else {
-      if (configuration.screenWidthDp < 600) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-      }
+      act.applyDefaultOrientation()
       insetsController.show(WindowInsetsCompat.Type.systemBars())
     }
   }
@@ -173,7 +172,7 @@ fun SecureMediaPlayerScreen(
     onDispose {
       val act = context.findActivity()
       if (act != null) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        act.applyDefaultOrientation()
         act.window?.let { window ->
           WindowCompat.getInsetsController(window, window.decorView)
             .show(WindowInsetsCompat.Type.systemBars())
@@ -264,7 +263,7 @@ fun SecureMediaPlayerScreen(
 
   val focusRequester = remember { FocusRequester() }
   LaunchedEffect(Unit) {
-    focusRequester.requestFocus()
+    runCatching { focusRequester.requestFocus() }
   }
 
   Surface(
@@ -286,18 +285,15 @@ fun SecureMediaPlayerScreen(
               true
             }
             Key.DirectionRight -> {
-              val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(durationMs)
+              val newPos = (exoPlayer.currentPosition + 10000L)
+                .coerceAtMost(if (durationMs > 0L) durationMs else Long.MAX_VALUE)
               exoPlayer.seekTo(newPos)
               currentPositionMs = newPos
               true
             }
             Key.Escape -> {
-              if (isFullscreen) {
-                setFullscreen(false)
-                true
-              } else {
-                false
-              }
+              if (isFullscreen) setFullscreen(false) else onBack()
+              true
             }
             else -> false
           }
