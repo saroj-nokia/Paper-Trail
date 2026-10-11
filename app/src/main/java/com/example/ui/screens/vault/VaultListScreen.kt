@@ -23,6 +23,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -100,6 +108,7 @@ fun VaultListScreen(
   var sortMenuExpanded by remember { mutableStateOf(false) }
   val frostedGlassEnabled = LocalFrostedGlassEnabled.current
   val hazeState = LocalHazeState.current
+  val searchFocusRequester = remember { FocusRequester() }
 
   Scaffold(
     topBar = {
@@ -187,7 +196,15 @@ fun VaultListScreen(
       modifier = Modifier
         .fillMaxSize()
         .padding(top = paddingValues.calculateTopPadding())
-        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled),
+        .frostedGlassSource(hazeState, enabled = frostedGlassEnabled)
+        .onPreviewKeyEvent { keyEvent ->
+          if (keyEvent.type == KeyEventType.KeyDown && keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
+            searchFocusRequester.requestFocus()
+            true
+          } else {
+            false
+          }
+        },
       contentAlignment = Alignment.TopCenter
     ) {
       Column(
@@ -199,7 +216,7 @@ fun VaultListScreen(
       OutlinedTextField(
         value = searchQuery,
         onValueChange = { viewModel.setSearchQuery(it) },
-        placeholder = { Text("Search merchant, category, notes, or OCR text...") },
+        placeholder = { Text("Search merchant, category, notes, or OCR text... (Ctrl+F)") },
         leadingIcon = {
           Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         },
@@ -221,6 +238,7 @@ fun VaultListScreen(
         modifier = Modifier
           .fillMaxWidth()
           .padding(horizontal = 16.dp, vertical = 4.dp)
+          .focusRequester(searchFocusRequester)
           .testTag("vault_search_input")
       )
 

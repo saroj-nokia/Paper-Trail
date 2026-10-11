@@ -12,7 +12,11 @@ import com.example.ui.theme.PaperTrailMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
@@ -351,6 +355,8 @@ private fun IntegrityItemRow(
 
   val interactionSource = remember { MutableInteractionSource() }
   val isPressed by interactionSource.collectIsPressedAsState()
+  val isHovered by interactionSource.collectIsHoveredAsState()
+  val isFocused by interactionSource.collectIsFocusedAsState()
   val scale by animateFloatAsState(
     targetValue = if (isPressed) PaperTrailMotion.PRESS_SCALE_DOWN else 1f,
     animationSpec = PaperTrailMotion.pressScaleSpec(),
@@ -365,7 +371,24 @@ private fun IntegrityItemRow(
         scaleY = scale
       }
       .clip(RoundedCornerShape(8.dp))
-      .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+      .background(
+        when {
+          isHovered -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+          isFocused -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+          else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        }
+      )
+      .then(
+        if (isFocused) {
+          Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+        } else if (isHovered) {
+          Modifier.border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+        } else {
+          Modifier
+        }
+      )
+      .hoverable(interactionSource)
+      .focusable(interactionSource = interactionSource)
       .clickable(
         interactionSource = interactionSource,
         indication = androidx.compose.foundation.LocalIndication.current

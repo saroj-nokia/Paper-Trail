@@ -18,7 +18,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +36,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
@@ -253,9 +262,49 @@ fun SecureMediaPlayerScreen(
     }
   }
 
+  val focusRequester = remember { FocusRequester() }
+  LaunchedEffect(Unit) {
+    focusRequester.requestFocus()
+  }
+
   Surface(
     modifier = modifier
       .fillMaxSize()
+      .focusRequester(focusRequester)
+      .focusable()
+      .onKeyEvent { keyEvent ->
+        if (keyEvent.type == KeyEventType.KeyDown) {
+          when (keyEvent.key) {
+            Key.Spacebar -> {
+              if (isPlaying) exoPlayer.pause() else exoPlayer.play()
+              true
+            }
+            Key.DirectionLeft -> {
+              val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+              exoPlayer.seekTo(newPos)
+              currentPositionMs = newPos
+              true
+            }
+            Key.DirectionRight -> {
+              val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(durationMs)
+              exoPlayer.seekTo(newPos)
+              currentPositionMs = newPos
+              true
+            }
+            Key.Escape -> {
+              if (isFullscreen) {
+                setFullscreen(false)
+                true
+              } else {
+                false
+              }
+            }
+            else -> false
+          }
+        } else {
+          false
+        }
+      }
       .testTag("secure_media_player_screen"),
     color = DarkPlayerBackground
   ) {

@@ -17,6 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -85,7 +90,16 @@ fun CryptoTerminalBottomSheet(
     sheetState = sheetState,
     containerColor = TerminalDarkBg,
     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-    modifier = Modifier.testTag("crypto_terminal_sheet")
+    modifier = Modifier
+      .onKeyEvent { keyEvent ->
+        if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.Escape) {
+          onDismiss()
+          true
+        } else {
+          false
+        }
+      }
+      .testTag("crypto_terminal_sheet")
   ) {
     val terminalHazeState = remember { HazeState() }
     

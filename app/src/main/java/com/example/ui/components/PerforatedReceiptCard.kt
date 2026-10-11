@@ -2,7 +2,11 @@ package com.example.ui.components
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import com.example.ui.theme.PaperTrailMotion
@@ -71,6 +75,8 @@ fun PerforatedReceiptCard(
 
   val interactionSource = remember { MutableInteractionSource() }
   val isPressed by interactionSource.collectIsPressedAsState()
+  val isHovered by interactionSource.collectIsHoveredAsState()
+  val isFocused by interactionSource.collectIsFocusedAsState()
   val scale by animateFloatAsState(
     targetValue = if (isPressed) PaperTrailMotion.PRESS_SCALE_DOWN else 1f,
     animationSpec = PaperTrailMotion.pressScaleSpec(),
@@ -85,7 +91,17 @@ fun PerforatedReceiptCard(
         scaleY = scale
       }
       .clip(RoundedCornerShape(12.dp))
-      .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+      .then(
+        if (isFocused) {
+          Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+        } else if (isHovered) {
+          Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+        } else {
+          Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+        }
+      )
+      .hoverable(interactionSource)
+      .focusable(interactionSource = interactionSource)
       .clickable(
         interactionSource = interactionSource,
         indication = androidx.compose.foundation.LocalIndication.current,

@@ -1,8 +1,12 @@
 package com.example.ui.screens.capture
 
 import android.app.DatePickerDialog
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -156,6 +160,15 @@ fun CaptureOcrScreen(
 
   // Temp Camera URI
   var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+  // Hardware and intent availability check for Camera
+  val isCameraAvailable = remember(context) {
+    val pm = context.packageManager
+    val hasFeature = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+    val captureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+    val hasHandler = captureIntent.resolveActivity(pm) != null
+    hasFeature && hasHandler
+  }
 
   // Launchers
   val cameraLauncher = rememberLauncherForActivityResult(
@@ -358,31 +371,63 @@ fun CaptureOcrScreen(
               Text("Downsampling & recognizing text on-device...", style = MaterialTheme.typography.bodyMedium)
             }
           } else {
-            Row(
+            Column(
               modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(10.dp)
+              verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Button(
-                onClick = {
-                  val uri = ImageFileManager.createTempImageUri(context)
-                  tempCameraUri = uri
-                  cameraLauncher.launch(uri)
-                },
-                modifier = Modifier.weight(1f).testTag("camera_capture_button"),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
               ) {
-                Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(if (capturedBitmap == null) "Take Photo" else "Retake")
+                if (isCameraAvailable) {
+                  Button(
+                    onClick = {
+                      try {
+                        val uri = ImageFileManager.createTempImageUri(context)
+                        tempCameraUri = uri
+                        cameraLauncher.launch(uri)
+                      } catch (_: ActivityNotFoundException) {
+                        ocrMessage = "Camera application not found. Please pick an image from files/gallery."
+                      } catch (e: Exception) {
+                        ocrMessage = "Unable to open camera: ${e.message}"
+                      }
+                    },
+                    modifier = Modifier.weight(1f).testTag("camera_capture_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                  ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (capturedBitmap == null) "Take Photo" else "Retake")
+                  }
+
+                  OutlinedButton(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    modifier = Modifier.weight(1f).testTag("gallery_picker_button")
+                  ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Pick Image")
+                  }
+                } else {
+                  // Primary action is Gallery / File Picker when Camera hardware or app is absent
+                  Button(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth().testTag("gallery_picker_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                  ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (capturedBitmap == null) "Choose Receipt Image or File" else "Choose Different Image", fontWeight = FontWeight.SemiBold)
+                  }
+                }
               }
 
-              OutlinedButton(
-                onClick = { galleryLauncher.launch("image/*") },
-                modifier = Modifier.weight(1f).testTag("gallery_picker_button")
-              ) {
-                Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Pick Image")
+              if (!isCameraAvailable) {
+                Text(
+                  text = "Camera is unavailable on this device. Select receipt images or scans directly from your files.",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
               }
             }
           }

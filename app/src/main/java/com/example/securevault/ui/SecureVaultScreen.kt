@@ -2,10 +2,13 @@ package com.example.securevault.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.biometric.BiometricManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
@@ -15,6 +18,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -114,6 +120,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -1336,6 +1343,13 @@ private fun SecureVaultLockGate(
   onPassphraseUnlock: () -> Unit,
   isLoading: Boolean
 ) {
+  val context = LocalContext.current
+  val hasBiometricHardware = remember(context) {
+    val bm = BiometricManager.from(context)
+    val status = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+    status != BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE && status != BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE
+  }
+
   Box(
     modifier = Modifier
       .fillMaxSize()
@@ -1374,7 +1388,11 @@ private fun SecureVaultLockGate(
       Spacer(modifier = Modifier.height(8.dp))
 
       Text(
-        text = "This isolated vault requires hardware biometric authentication to access and decrypt your private files.",
+        text = if (hasBiometricHardware) {
+          "This isolated vault requires hardware biometric authentication or your master credential to access and decrypt your private files."
+        } else {
+          "Biometric sensor not present on this device. Unlock SecureVault using your hardware-backed master credential or device credentials."
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
@@ -1383,50 +1401,75 @@ private fun SecureVaultLockGate(
 
       Spacer(modifier = Modifier.height(32.dp))
 
-      Button(
-        onClick = onUnlock,
-        enabled = !isLoading,
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(52.dp)
-          .testTag("securevault_unlock_button"),
-        colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber)
-      ) {
-        if (isLoading) {
-          CircularProgressIndicator(
-            modifier = Modifier.size(24.dp),
-            color = Color.White,
-            strokeWidth = 2.dp
-          )
-        } else {
-          Icon(Icons.Default.Fingerprint, contentDescription = null)
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Unlock SecureVault", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+      if (hasBiometricHardware) {
+        Button(
+          onClick = onUnlock,
+          enabled = !isLoading,
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .testTag("securevault_unlock_button"),
+          colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber)
+        ) {
+          if (isLoading) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(24.dp),
+              color = Color.White,
+              strokeWidth = 2.dp
+            )
+          } else {
+            Icon(Icons.Default.Fingerprint, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Unlock with Biometrics", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+          }
         }
-      }
 
-      Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-      OutlinedButton(
-        onClick = onPassphraseUnlock,
-        enabled = !isLoading,
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(48.dp)
-          .testTag("securevault_passphrase_button")
-      ) {
-        Icon(
-          imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
-          contentDescription = null,
-          tint = SecureVaultAmber,
-          modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-          text = if (masterCredentialType == MasterCredentialType.PIN) "Use Master PIN" else "Use Master Passphrase",
-          color = MaterialTheme.colorScheme.onSurface,
-          fontWeight = FontWeight.SemiBold
-        )
+        OutlinedButton(
+          onClick = onPassphraseUnlock,
+          enabled = !isLoading,
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .testTag("securevault_passphrase_button")
+        ) {
+          Icon(
+            imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
+            contentDescription = null,
+            tint = SecureVaultAmber,
+            modifier = Modifier.size(18.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = if (masterCredentialType == MasterCredentialType.PIN) "Use Master PIN" else "Use Master Passphrase",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold
+          )
+        }
+      } else {
+        // No biometric sensor: Master Credential is the primary unlock action
+        Button(
+          onClick = onPassphraseUnlock,
+          enabled = !isLoading,
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .testTag("securevault_passphrase_button"),
+          colors = ButtonDefaults.buttonColors(containerColor = SecureVaultAmber)
+        ) {
+          Icon(
+            imageVector = if (masterCredentialType == MasterCredentialType.PIN) Icons.Default.Pin else Icons.Default.Key,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = if (masterCredentialType == MasterCredentialType.PIN) "Unlock with Master PIN" else "Unlock with Master Passphrase",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+          )
+        }
       }
     }
   }
@@ -1589,12 +1632,29 @@ private fun MasterPassphraseDialog(
         ) {
           MasterCredentialType.entries.forEach { type ->
             val isSelected = activeMode == type
+            val tabInteractionSource = remember { MutableInteractionSource() }
+            val isTabFocused by tabInteractionSource.collectIsFocusedAsState()
+            val isTabHovered by tabInteractionSource.collectIsHoveredAsState()
             Box(
               modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(6.dp))
                 .background(if (isSelected) SecureVaultAmber else Color.Transparent)
-                .clickable {
+                .then(
+                  if (isTabFocused) {
+                    Modifier.border(2.dp, Color.White, RoundedCornerShape(6.dp))
+                  } else if (isTabHovered) {
+                    Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                  } else {
+                    Modifier
+                  }
+                )
+                .hoverable(tabInteractionSource)
+                .focusable(interactionSource = tabInteractionSource)
+                .clickable(
+                  interactionSource = tabInteractionSource,
+                  indication = androidx.compose.foundation.LocalIndication.current
+                ) {
                   activeMode = type
                   passphrase = ""
                 }
@@ -1627,7 +1687,17 @@ private fun MasterPassphraseDialog(
           singleLine = true,
           enabled = lockoutSeconds == 0L,
           visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-          keyboardOptions = KeyboardOptions(keyboardType = if (activeMode == MasterCredentialType.PIN) KeyboardType.NumberPassword else KeyboardType.Password),
+          keyboardOptions = KeyboardOptions(
+            keyboardType = if (activeMode == MasterCredentialType.PIN) KeyboardType.NumberPassword else KeyboardType.Password,
+            imeAction = ImeAction.Done
+          ),
+          keyboardActions = KeyboardActions(
+            onDone = {
+              if (passphrase.isNotBlank() && lockoutSeconds == 0L) {
+                onVerify(passphrase)
+              }
+            }
+          ),
           trailingIcon = {
             IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
               Icon(
@@ -1743,12 +1813,29 @@ private fun MasterCredentialSetupDialog(
         ) {
           MasterCredentialType.entries.forEach { type ->
             val isSelected = selectedType == type
+            val setupTabInteractionSource = remember { MutableInteractionSource() }
+            val isSetupTabFocused by setupTabInteractionSource.collectIsFocusedAsState()
+            val isSetupTabHovered by setupTabInteractionSource.collectIsHoveredAsState()
             Box(
               modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (isSelected) SecureVaultAmber else Color.Transparent)
-                .clickable {
+                .then(
+                  if (isSetupTabFocused) {
+                    Modifier.border(2.dp, Color.White, RoundedCornerShape(8.dp))
+                  } else if (isSetupTabHovered) {
+                    Modifier.border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                  } else {
+                    Modifier
+                  }
+                )
+                .hoverable(setupTabInteractionSource)
+                .focusable(interactionSource = setupTabInteractionSource)
+                .clickable(
+                  interactionSource = setupTabInteractionSource,
+                  indication = androidx.compose.foundation.LocalIndication.current
+                ) {
                   selectedType = type
                   localError = null
                 }
