@@ -101,6 +101,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
+import com.example.applyDefaultOrientation
 import com.example.securevault.data.SecureVaultRepository
 import com.example.securevault.media.SecureVaultDecryptingDataSource
 import com.example.securevault.model.SecureFileItem
@@ -136,16 +137,14 @@ fun SecureMediaPlayerScreen(
     val window = act.window ?: return
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     if (enable) {
-      if (configuration.screenWidthDp < 600) {
+      if (configuration.smallestScreenWidthDp < 600) {
         act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
       }
       insetsController.hide(WindowInsetsCompat.Type.systemBars())
       insetsController.systemBarsBehavior =
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     } else {
-      if (configuration.screenWidthDp < 600) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-      }
+      act.applyDefaultOrientation()
       insetsController.show(WindowInsetsCompat.Type.systemBars())
     }
   }
@@ -173,7 +172,7 @@ fun SecureMediaPlayerScreen(
     onDispose {
       val act = context.findActivity()
       if (act != null) {
-        act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        act.applyDefaultOrientation()
         act.window?.let { window ->
           WindowCompat.getInsetsController(window, window.decorView)
             .show(WindowInsetsCompat.Type.systemBars())
@@ -264,7 +263,7 @@ fun SecureMediaPlayerScreen(
 
   val focusRequester = remember { FocusRequester() }
   LaunchedEffect(Unit) {
-    focusRequester.requestFocus()
+    runCatching { focusRequester.requestFocus() }
   }
 
   Surface(
@@ -286,7 +285,8 @@ fun SecureMediaPlayerScreen(
               true
             }
             Key.DirectionRight -> {
-              val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(durationMs)
+              val maxLimit = if (durationMs > 0L) durationMs else Long.MAX_VALUE
+              val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(maxLimit)
               exoPlayer.seekTo(newPos)
               currentPositionMs = newPos
               true
@@ -294,10 +294,10 @@ fun SecureMediaPlayerScreen(
             Key.Escape -> {
               if (isFullscreen) {
                 setFullscreen(false)
-                true
               } else {
-                false
+                onBack()
               }
+              true
             }
             else -> false
           }

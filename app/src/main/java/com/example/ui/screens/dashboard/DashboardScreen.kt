@@ -233,8 +233,8 @@ fun DashboardScreen(
     ) {
       LazyColumn(
         modifier = Modifier
-          .fillMaxSize()
-          .widthIn(max = 840.dp),
+          .widthIn(max = 840.dp)
+          .fillMaxSize(),
         contentPadding = PaddingValues(
           start = 16.dp,
           end = 16.dp,

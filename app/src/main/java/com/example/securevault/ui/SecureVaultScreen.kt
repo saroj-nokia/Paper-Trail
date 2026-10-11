@@ -436,8 +436,8 @@ fun SecureVaultScreen(
       ) {
         Column(
           modifier = Modifier
-            .fillMaxSize()
             .widthIn(max = 840.dp)
+            .fillMaxSize()
         ) {
         // Security Status & Storage Mode Banner
         Box(

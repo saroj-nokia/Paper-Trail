@@ -168,8 +168,8 @@ fun SettingsScreen(
     ) {
       Column(
         modifier = Modifier
-          .fillMaxSize()
           .widthIn(max = 840.dp)
+          .fillMaxSize()
           .verticalScroll(rememberScrollState())
           .padding(
             start = 16.dp,

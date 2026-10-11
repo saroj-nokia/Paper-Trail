@@ -1,5 +1,7 @@
 package com.example
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
@@ -10,11 +12,21 @@ import com.example.ui.navigation.PaperTrailAppContent
 import com.example.ui.screens.vault.VaultViewModel
 import com.example.ui.theme.PaperTrailTheme
 
+fun Activity.applyDefaultOrientation() {
+  requestedOrientation = if (resources.configuration.smallestScreenWidthDp < 600) {
+    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+  } else {
+    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+  }
+}
+
 class MainActivity : FragmentActivity() {
   private val viewModel: VaultViewModel by viewModels()
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    applyDefaultOrientation()
 
     // Protect against screenshots, screen recording, and Recent Apps thumbnail exposure.
     // Setting FLAG_SECURE app-wide prevents sensitive receipt, financial ledger, and
