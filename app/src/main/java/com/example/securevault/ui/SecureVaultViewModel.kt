@@ -736,9 +736,8 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         cipher = cipher,
         title = "Play Secure Media",
         subtitle = "Confirm biometrics to authorize real-time stream decryption",
-        onSuccess = { authenticatedCipher ->
+        onSuccess = { validCipher ->
           _isLoading.value = false
-          val validCipher = authenticatedCipher ?: cipher
           _activeMediaPlayback.value = SecureVaultMediaPlayerState(item, validCipher)
         },
         onError = { err ->
