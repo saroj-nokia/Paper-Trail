@@ -573,8 +573,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         cipher = cipher,
         title = "Encrypt & Store File",
         subtitle = "Confirm biometrics to authorize hardware AES-256 encryption",
-        onSuccess = { authenticatedCipher ->
-          val validCipher = authenticatedCipher ?: cipher
+        onSuccess = { validCipher ->
           viewModelScope.launch {
             _transferProgress.value = TransferProgress(
               isTransferring = true,
@@ -632,8 +631,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         cipher = cipher,
         title = "Export & Decrypt File",
         subtitle = "Confirm biometrics to stream-decrypt to external storage",
-        onSuccess = { authenticatedCipher ->
-          val validCipher = authenticatedCipher ?: cipher
+        onSuccess = { validCipher ->
           viewModelScope.launch {
             _transferProgress.value = TransferProgress(
               isTransferring = true,
@@ -690,8 +688,7 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         cipher = cipher,
         title = "Decrypt for Preview",
         subtitle = "Confirm biometrics to authorize in-memory hardware decryption",
-        onSuccess = { authenticatedCipher ->
-          val validCipher = authenticatedCipher ?: cipher
+        onSuccess = { validCipher ->
           viewModelScope.launch {
             val result = repository.decryptFile(item, validCipher)
             _isLoading.value = false
