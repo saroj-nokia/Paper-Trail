@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Googlebook & laptop support: make hardware features optional so installs are not filtered out -->
     <uses-feature

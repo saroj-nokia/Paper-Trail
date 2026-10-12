@@ -23,7 +23,7 @@
 ## Features
 
 ### 1. Core Ledger (Receipts, Warranties & Subscriptions)
-- **On-Device Receipt Scanning**: Capture documents via the system camera (invoked via Storage Access Framework / system intents without bundled camera bloat) or import existing images from storage.
+- **On-Device Receipt Scanning**: Capture documents via the system camera (invoked via system intents) or the built-in CameraX camera fallback (for devices/ROMs lacking an external camera app handler), or import existing images from storage.
 - **Local OCR Extraction**: Automatically extracts merchant name, purchase date, and grand total on-device using bundled ML Kit Text Recognition without leaking bitmap data.
 - **Warranty Health Tracker**: Tracks purchase dates and warranty duration with background notifications via Android WorkManager prior to expiration.
 - **Subscription Monitor**: Tracks billing intervals, renewal dates, and automatically calculates aggregate monthly/annualized commitments.
@@ -120,6 +120,7 @@ com.example
 | **Local Persistence** | Room + SQLCipher (256-bit AES) |
 | **Key Management** | Android Keystore (StrongBox Keymaster / TEE) |
 | **Text Recognition** | ML Kit Text Recognition (`com.google.mlkit:text-recognition` bundled model) |
+| **Camera Fallback** | AndroidX CameraX (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-view`) |
 | **Media Playback** | AndroidX Media3 / ExoPlayer with custom streaming `DataSource` |
 | **Background Jobs** | AndroidX WorkManager (local reminder dispatch) |
 | **Minimum SDK** | Android 12 (API level 31) |
@@ -157,6 +158,18 @@ com.example
    ```bash
    ./gradlew assembleRelease
    ```
+
+---
+
+## Permissions & Privacy Policy
+
+Paper Trail requests only the minimum permissions necessary for its offline features:
+
+- `USE_BIOMETRIC`: Used for optional local app lock and hardware-bound biometric authentication to access encrypted files in SecureVault.
+- `POST_NOTIFICATIONS`: Used exclusively on Android 13+ to dispatch local on-device reminder alerts prior to warranty and subscription expiration dates via WorkManager.
+- `CAMERA`: Requested at runtime **only when the user opens the built-in camera fallback** (e.g. on laptops, Googlebooks, or custom ROMs where no system camera app is installed or reachable). It is never requested at startup. No location permission is requested, no GPS metadata is written to images, and nothing is ever uploaded.
+
+The application declares **zero network permissions** (`android.permission.INTERNET` is omitted) and cannot transmit any data off the device.
 
 ---
 

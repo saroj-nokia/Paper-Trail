@@ -1,5 +1,6 @@
 package com.example.ui.screens.capture
 
+import android.Manifest
 import android.app.DatePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
@@ -7,6 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
@@ -64,6 +66,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -159,9 +162,64 @@ fun CaptureOcrScreen(
   // Temp Camera URI
   var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
+  // Built-in CameraX fallback overlay state
+  var isInAppCameraOpen by remember { mutableStateOf(false) }
+
   // Hardware feature availability check for Camera
   val isCameraAvailable = remember(context) {
     context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+  }
+
+  // Shared image processing function for system camera, built-in camera, and gallery picker
+  fun processReceiptImageUri(uri: Uri) {
+    scope.launch {
+      isProcessingOcr = true
+      ocrMessage = null
+      val bitmap = ImageFileManager.decodeSampledBitmap(context, uri)
+      if (bitmap != null) {
+        if (capturedBitmap?.isRecycled == false) {
+          capturedBitmap?.recycle()
+        }
+        capturedBitmap = bitmap
+        val ocrResult = ReceiptOcrProcessor.processImage(bitmap)
+        if (ocrResult.isSuccessful && ocrResult.rawText.isNotBlank()) {
+          if (ocrResult.storeName.isNotBlank()) storeName = ocrResult.storeName
+          if (ocrResult.amount > 0.0) amountStr = String.format(Locale.US, "%.2f", ocrResult.amount)
+          purchaseDateMs = ocrResult.purchaseDate
+          category = ocrResult.suggestedCategory
+          rawOcrText = ocrResult.rawText
+          ocrCompleted = true
+          ocrMessage = null
+        } else {
+          ocrCompleted = false
+          ocrMessage = "Couldn't read text from this receipt — please enter details manually."
+        }
+      } else {
+        ocrCompleted = false
+        ocrMessage = "Unable to load captured photo. Please try again."
+      }
+      isProcessingOcr = false
+    }
+  }
+
+  // Camera permission launcher for built-in camera fallback
+  val cameraPermissionLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.RequestPermission()
+  ) { isGranted ->
+    if (isGranted) {
+      isInAppCameraOpen = true
+    } else {
+      ocrMessage = "Camera permission was denied. You can select receipts from your gallery/files."
+    }
+  }
+
+  fun openInAppCamera() {
+    val permissionStatus = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+    if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+      isInAppCameraOpen = true
+    } else {
+      cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    }
   }
 
   // Launchers
@@ -169,34 +227,7 @@ fun CaptureOcrScreen(
     contract = ActivityResultContracts.TakePicture()
   ) { success ->
     if (success && tempCameraUri != null) {
-      scope.launch {
-        isProcessingOcr = true
-        ocrMessage = null
-        val bitmap = ImageFileManager.decodeSampledBitmap(context, tempCameraUri!!)
-        if (bitmap != null) {
-          if (capturedBitmap?.isRecycled == false) {
-            capturedBitmap?.recycle()
-          }
-          capturedBitmap = bitmap
-          val ocrResult = ReceiptOcrProcessor.processImage(bitmap)
-          if (ocrResult.isSuccessful && ocrResult.rawText.isNotBlank()) {
-            if (ocrResult.storeName.isNotBlank()) storeName = ocrResult.storeName
-            if (ocrResult.amount > 0.0) amountStr = String.format(Locale.US, "%.2f", ocrResult.amount)
-            purchaseDateMs = ocrResult.purchaseDate
-            category = ocrResult.suggestedCategory
-            rawOcrText = ocrResult.rawText
-            ocrCompleted = true
-            ocrMessage = null
-          } else {
-            ocrCompleted = false
-            ocrMessage = "Couldn't read text from this receipt — please enter details manually."
-          }
-        } else {
-          ocrCompleted = false
-          ocrMessage = "Unable to load captured photo. Please try again."
-        }
-        isProcessingOcr = false
-      }
+      processReceiptImageUri(tempCameraUri!!)
     }
   }
 
@@ -204,34 +235,7 @@ fun CaptureOcrScreen(
     contract = ActivityResultContracts.GetContent()
   ) { uri: Uri? ->
     if (uri != null) {
-      scope.launch {
-        isProcessingOcr = true
-        ocrMessage = null
-        val bitmap = ImageFileManager.decodeSampledBitmap(context, uri)
-        if (bitmap != null) {
-          if (capturedBitmap?.isRecycled == false) {
-            capturedBitmap?.recycle()
-          }
-          capturedBitmap = bitmap
-          val ocrResult = ReceiptOcrProcessor.processImage(bitmap)
-          if (ocrResult.isSuccessful && ocrResult.rawText.isNotBlank()) {
-            if (ocrResult.storeName.isNotBlank()) storeName = ocrResult.storeName
-            if (ocrResult.amount > 0.0) amountStr = String.format(Locale.US, "%.2f", ocrResult.amount)
-            purchaseDateMs = ocrResult.purchaseDate
-            category = ocrResult.suggestedCategory
-            rawOcrText = ocrResult.rawText
-            ocrCompleted = true
-            ocrMessage = null
-          } else {
-            ocrCompleted = false
-            ocrMessage = "Couldn't read text from this receipt — please enter details manually."
-          }
-        } else {
-          ocrCompleted = false
-          ocrMessage = "Unable to load selected photo. Please try again."
-        }
-        isProcessingOcr = false
-      }
+      processReceiptImageUri(uri)
     }
   }
 
@@ -381,7 +385,11 @@ fun CaptureOcrScreen(
                         tempCameraUri = uri
                         cameraLauncher.launch(uri)
                       } catch (_: ActivityNotFoundException) {
-                        ocrMessage = "Camera application not found. Please pick an image from files/gallery."
+                        // Automatically open built-in camera fallback if system camera app not found
+                        openInAppCamera()
+                      } catch (_: SecurityException) {
+                        // Automatically open built-in camera fallback if system camera throws SecurityException
+                        openInAppCamera()
                       } catch (e: Exception) {
                         ocrMessage = "Unable to open camera: ${e.message}"
                       }
@@ -413,6 +421,22 @@ fun CaptureOcrScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(if (capturedBitmap == null) "Choose Receipt Image or File" else "Choose Different Image", fontWeight = FontWeight.SemiBold)
                   }
+                }
+              }
+
+              // Small manual text button when camera hardware is present
+              if (isCameraAvailable) {
+                TextButton(
+                  onClick = { openInAppCamera() },
+                  modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .testTag("in_app_camera_fallback_button")
+                ) {
+                  Text(
+                    text = "Camera not opening? Use built-in camera",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                  )
                 }
               }
 
@@ -753,6 +777,23 @@ fun CaptureOcrScreen(
 
       Spacer(modifier = Modifier.height(32.dp))
     }
+  }
+
+  // 3. Built-in CameraX full-screen overlay (rendered within this window so FLAG_SECURE applies)
+  if (isInAppCameraOpen) {
+    InAppCameraScreen(
+      onImageCaptured = { uri ->
+        isInAppCameraOpen = false
+        processReceiptImageUri(uri)
+      },
+      onError = { errorMsg ->
+        isInAppCameraOpen = false
+        ocrMessage = errorMsg
+      },
+      onDismiss = {
+        isInAppCameraOpen = false
+      }
+    )
   }
 }
 }

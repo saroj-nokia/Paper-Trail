@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Built-in CameraX Receipt Scanner Fallback (`InAppCameraScreen`)**:
+  - Integrated CameraX (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-view` version `1.5.1`) as a built-in capture fallback when system camera intents fail or are unavailable (e.g., custom ROMs without camera handlers, laptops, and Googlebooks).
+  - Automatically activates when launching the system camera encounters `ActivityNotFoundException` or `SecurityException`, and offers an explicit manual trigger via "Camera not opening? Use built-in camera".
+  - Full-screen in-window composable preserving app-wide `FLAG_SECURE` window protection. Supports lens switching (back/front/external), dynamic zoom chips (0.5x, 1x, 2x, 3x, 5x within supported ratios), pinch-to-zoom, laptop mouse-wheel zoom, tap-to-focus with spring-animated focus ring, and optional frosted-glass control bar.
+  - Shares the identical receipt downsampling, OCR parsing, and temporary storage pipeline with the default system camera and gallery picker.
+  - Declared `CAMERA` permission, requested strictly at runtime when the built-in camera is about to open (never at app launch). If denied, the user is notified with graceful fallback to gallery/file picking. Zero location permissions requested, zero network transmission, and 100% offline.
 - **App-wide `FLAG_SECURE` Screen & Snapshot Protection**:
   - Configured `WindowManager.LayoutParams.FLAG_SECURE` on `MainActivity.window` in `onCreate()` before `setContent`.
   - Blocks screenshots, screen recordings, remote screen capture (e.g. MediaProjection, unprivileged accessibility recording), and prevents the Android OS Recent Apps switcher from generating or caching visible thumbnail previews of receipts, financial ledgers, or SecureVault content.
