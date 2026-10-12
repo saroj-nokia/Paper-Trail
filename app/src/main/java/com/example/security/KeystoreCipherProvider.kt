@@ -48,11 +48,10 @@ object KeystoreCipherProvider {
       }
       generateKey(alias, useStrongBox = true)
     } catch (e: Exception) {
-      Log.w(
-        TAG,
-        "AndroidKeyStore error for alias '$alias' (${e.message}). Initializing fallback key for JVM/testing environment.",
-        e
-      )
+      // The in-memory fallback exists only for Robolectric/JVM tests; on a real device fail loudly.
+      if (Build.FINGERPRINT != "robolectric") {
+        throw KeystoreUnavailableException("AndroidKeyStore unavailable for alias '$alias'", e)
+      }
       getOrCreateJvmTestFallbackKey(alias)
     }
   }

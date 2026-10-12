@@ -33,10 +33,6 @@ class BiometricAuthManager(private val context: Context) {
     )
   }
 
-  fun unlockDirectly() {
-    _isUnlocked.value = true
-  }
-
   fun lock() {
     if (isLockConfigured) {
       _isUnlocked.value = false

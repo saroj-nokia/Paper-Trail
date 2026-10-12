@@ -49,7 +49,13 @@ class SecureVaultAuthManager(private val context: Context) {
     val prompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
       override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
         super.onAuthenticationSucceeded(result)
-        val authenticatedCipher = result.cryptoObject?.cipher ?: cipher
+        // Success without a CryptoObject is not proof of authentication; never trust it.
+        val authenticatedCipher = result.cryptoObject?.cipher
+        if (authenticatedCipher == null) {
+          lock()
+          onError("Authentication did not return a cryptographic confirmation.")
+          return
+        }
         activeCipher = authenticatedCipher
         _isUnlocked.value = true
         onSuccess(authenticatedCipher)
@@ -67,30 +73,18 @@ class SecureVaultAuthManager(private val context: Context) {
       }
     })
 
-    if (cipher != null) {
-      val promptInfo = BiometricPrompt.PromptInfo.Builder()
-        .setTitle(title)
-        .setSubtitle(subtitle)
-        .setNegativeButtonText("Cancel")
-        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-        .build()
-
-      try {
-        prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
-        return
-      } catch (e: Exception) {
-        Log.w("SecureVaultAuth", "Biometric CryptoObject authentication initiation failed: ${e.message}. Using standard prompt.")
-      }
+    if (cipher == null) {
+      onError("Secure authentication could not start because the vault key is unavailable.")
+      return
     }
 
-    val fallbackPromptInfo = BiometricPrompt.PromptInfo.Builder()
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
       .setTitle(title)
       .setSubtitle(subtitle)
-      .setAllowedAuthenticators(
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-      )
+      .setNegativeButtonText("Cancel")
+      .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
       .build()
 
-    prompt.authenticate(fallbackPromptInfo)
+    prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
   }
 }
