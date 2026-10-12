@@ -366,18 +366,23 @@ class SecureVaultViewModel(application: Application) : AndroidViewModel(applicat
         }
       }
 
-      var cipher: Cipher? = null
-      try {
-        cipher = SecureVaultKeyManager.initEncryptCipher()
+      val cipher: Cipher = try {
+        SecureVaultKeyManager.initEncryptCipher()
+      } catch (e: KeystoreUnavailableException) {
+        _isLoading.value = false
+        _keystoreFailure.value = e
+        return@launch
       } catch (e: Exception) {
+        _isLoading.value = false
         Log.w(TAG, "Cipher init encountered issue: ${e.message}")
         if (SecureVaultKeyManager.isKeyPermanentlyInvalidated(e)) {
-          _isLoading.value = false
           val alertState = SecureVaultBiometricTracker.evaluateBiometricKeyInvalidation(activity)
           _biometricRosterAlert.value = alertState
           _showPassphrasePrompt.value = true
-          return@launch
+        } else {
+          _errorMessage.value = "Secure authentication initialization failed: ${e.message}"
         }
+        return@launch
       }
 
       try {

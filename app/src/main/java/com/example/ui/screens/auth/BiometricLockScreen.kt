@@ -78,9 +78,8 @@ fun BiometricLockScreen(
         }
       )
     } else {
-      // Fallback if not inside FragmentActivity
-      authManager.unlockDirectly()
-      onUnlocked()
+      // Cannot start biometric authentication outside FragmentActivity
+      errorMessage = "Unable to start authentication on this screen."
     }
   }
 

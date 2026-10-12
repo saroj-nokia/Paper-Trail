@@ -38,18 +38,28 @@ class SecureVaultAuthManager(private val context: Context) {
 
   fun promptBiometric(
     activity: FragmentActivity,
-    cipher: Cipher? = null,
+    cipher: Cipher?,
     title: String = "Unlock SecureVault",
     subtitle: String = "Hardware-backed biometric authorization required to access encrypted files",
-    onSuccess: (Cipher?) -> Unit,
+    onSuccess: (Cipher) -> Unit,
     onError: (String) -> Unit
   ) {
+    if (cipher == null) {
+      callOnErrorOnMain(activity, "Secure authentication could not start because the vault key is unavailable.", onError)
+      return
+    }
+
     val executor = ContextCompat.getMainExecutor(activity)
 
     val prompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
       override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
         super.onAuthenticationSucceeded(result)
-        val authenticatedCipher = result.cryptoObject?.cipher ?: cipher
+        val authenticatedCipher = result.cryptoObject?.cipher
+        if (authenticatedCipher == null) {
+          lock()
+          onError("Authentication did not return an authenticated cryptographic cipher.")
+          return
+        }
         activeCipher = authenticatedCipher
         _isUnlocked.value = true
         onSuccess(authenticatedCipher)
@@ -67,30 +77,25 @@ class SecureVaultAuthManager(private val context: Context) {
       }
     })
 
-    if (cipher != null) {
-      val promptInfo = BiometricPrompt.PromptInfo.Builder()
-        .setTitle(title)
-        .setSubtitle(subtitle)
-        .setNegativeButtonText("Cancel")
-        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-        .build()
-
-      try {
-        prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
-        return
-      } catch (e: Exception) {
-        Log.w("SecureVaultAuth", "Biometric CryptoObject authentication initiation failed: ${e.message}. Using standard prompt.")
-      }
-    }
-
-    val fallbackPromptInfo = BiometricPrompt.PromptInfo.Builder()
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
       .setTitle(title)
       .setSubtitle(subtitle)
-      .setAllowedAuthenticators(
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-      )
+      .setNegativeButtonText("Cancel")
+      .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
       .build()
 
-    prompt.authenticate(fallbackPromptInfo)
+    try {
+      prompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
+    } catch (e: Exception) {
+      lock()
+      onError("Failed to initiate biometric hardware verification: ${e.message}")
+    }
+  }
+
+  private fun callOnErrorOnMain(activity: FragmentActivity, message: String, onError: (String) -> Unit) {
+    ContextCompat.getMainExecutor(activity).execute {
+      lock()
+      onError(message)
+    }
   }
 }

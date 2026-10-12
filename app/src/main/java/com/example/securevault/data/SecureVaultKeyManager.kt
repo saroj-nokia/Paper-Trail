@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import android.security.keystore.UserNotAuthenticatedException
 import android.util.Log
+import com.example.security.KeystoreUnavailableException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -38,9 +39,15 @@ object SecureVaultKeyManager {
       }
       generateKey(useStrongBox = true)
     } catch (e: Exception) {
-      Log.w(TAG, "AndroidKeyStore error (${e.message}). Initializing fallback key for testing.", e)
-      isKeystoreAvailable = false
-      getOrCreateJvmTestFallbackKey()
+      if (Build.FINGERPRINT == "robolectric") {
+        Log.w(TAG, "AndroidKeyStore error (${e.message}). Initializing random fallback key for Robolectric testing.", e)
+        isKeystoreAvailable = false
+        getOrCreateJvmTestFallbackKey()
+      } else {
+        isKeystoreAvailable = false
+        Log.e(TAG, "Hardware AndroidKeyStore is unavailable: ${e.message}", e)
+        throw KeystoreUnavailableException("Hardware AndroidKeyStore is unavailable: ${e.message}")
+      }
     }
   }
 
@@ -88,8 +95,9 @@ object SecureVaultKeyManager {
 
   private fun getOrCreateJvmTestFallbackKey(): SecretKey {
     jvmTestFallbackKey?.let { return it }
-    val keyBytes = ByteArray(32) { (it * 7).toByte() }
-    val key = SecretKeySpec(keyBytes, "AES")
+    val kgen = KeyGenerator.getInstance("AES")
+    kgen.init(256)
+    val key = kgen.generateKey()
     jvmTestFallbackKey = key
     return key
   }

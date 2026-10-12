@@ -48,12 +48,17 @@ object KeystoreCipherProvider {
       }
       generateKey(alias, useStrongBox = true)
     } catch (e: Exception) {
-      Log.w(
-        TAG,
-        "AndroidKeyStore error for alias '$alias' (${e.message}). Initializing fallback key for JVM/testing environment.",
-        e
-      )
-      getOrCreateJvmTestFallbackKey(alias)
+      if (Build.FINGERPRINT == "robolectric") {
+        Log.w(
+          TAG,
+          "AndroidKeyStore error for alias '$alias' (${e.message}). Initializing fallback key for Robolectric testing environment.",
+          e
+        )
+        getOrCreateJvmTestFallbackKey(alias)
+      } else {
+        Log.e(TAG, "Hardware AndroidKeyStore unavailable for alias '$alias': ${e.message}", e)
+        throw KeystoreUnavailableException("Hardware AndroidKeyStore is unavailable: ${e.message}")
+      }
     }
   }
 
